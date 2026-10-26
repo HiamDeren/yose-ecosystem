@@ -11,11 +11,15 @@ import {
 } from "react";
 import { clearFiles, deleteFile, putFile } from "./file-store";
 import { buildMockData } from "./mock-data";
+import { generateSessions } from "./schedule";
 import type {
   Account,
   Attachment,
   AttachmentOwner,
+  ClassGroup,
   Homework,
+  Student,
+  Teacher,
   StudentRemark,
   Submission,
   VocabItem,
@@ -28,7 +32,7 @@ import type {
  * UI giữ nguyên.
  */
 
-const DATA_KEY = "yose-center-demo-v2";
+const DATA_KEY = "yose-center-demo-v3";
 const ACCOUNT_KEY = "yose-center-account";
 
 interface StoreValue {
@@ -52,6 +56,15 @@ interface StoreValue {
   reviewSubmission: (id: string, score: number | undefined, feedback: string) => void;
   setRemark: (sessionId: string, studentId: string, patch: Partial<StudentRemark>) => void;
   resetDemo: () => void;
+  /* ── Quản lý (admin). Trả về id mới, hoặc chuỗi lỗi khi không hợp lệ ── */
+  createClass: (input: Omit<ClassGroup, "id">) => { id?: string; error?: string };
+  updateClass: (id: string, patch: Partial<Omit<ClassGroup, "id">>) => { error?: string };
+  enroll: (studentId: string, classId: string) => { error?: string };
+  unenroll: (studentId: string, classId: string) => void;
+  createStudent: (input: Pick<Student, "fullName" | "email" | "phone">) => { id?: string; error?: string };
+  updateStudent: (id: string, patch: Partial<Pick<Student, "fullName" | "email" | "phone">>) => { error?: string };
+  createTeacher: (input: Omit<Teacher, "id">) => { id?: string; error?: string };
+  updateTeacher: (id: string, patch: Partial<Omit<Teacher, "id">>) => { error?: string };
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -270,6 +283,140 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetDemo: () => {
         void clearFiles();
         setData(buildMockData());
+      },
+
+      createClass: (input) => {
+        if (data.classes.some((c) => c.code.toLowerCase() === input.code.trim().toLowerCase()))
+          return { error: `Mã lớp ${input.code} đã tồn tại.` };
+        const id = `c-${crypto.randomUUID().slice(0, 6)}`;
+        const cls: ClassGroup = { ...input, code: input.code.trim(), id };
+        const sessions = generateSessions(cls, { now: Date.now() });
+        setData((d) => ({ ...d, classes: [...d.classes, cls], sessions: [...d.sessions, ...sessions] }));
+        return { id };
+      },
+      updateClass: (id, patch) => {
+        if (
+          patch.code &&
+          data.classes.some((c) => c.id !== id && c.code.toLowerCase() === patch.code!.trim().toLowerCase())
+        )
+          return { error: `Mã lớp ${patch.code} đã tồn tại.` };
+        const enrolled = data.enrollments.filter((e) => e.classId === id && e.status === "active").length;
+        if (patch.type && patch.type !== "GROUP" && enrolled > (patch.type === "ONE_ON_ONE" ? 1 : 2))
+          return { error: `Lớp đang có ${enrolled} học viên, nhiều hơn sĩ số tối đa của loại lớp này.` };
+        setData((d) => {
+          const old = d.classes.find((c) => c.id === id);
+          if (!old) return d;
+          const next = { ...old, ...patch };
+          const reschedule =
+            JSON.stringify(old.schedule) !== JSON.stringify(next.schedule) ||
+            old.startDate !== next.startDate ||
+            old.totalSessions !== next.totalSessions ||
+            old.teacherId !== next.teacherId;
+          let sessions = d.sessions;
+          if (reschedule) {
+            // Giữ buổi đã học; sinh lại các buổi chưa học. Id buổi = {lớp}-b{số buổi}
+            // nên note nháp, homework, tài liệu của buổi chưa học vẫn bám theo số buổi.
+            const done = d.sessions
+              .filter((s) => s.classId === id && s.status === "done")
+              .sort((a, b) => a.index - b.index);
+            const last = done[done.length - 1];
+            const regenerated = generateSessions(next, {
+              fromIndex: done.length,
+              from: last ? new Date(last.date) : undefined,
+              now: Date.now(),
+              topic: (i) => d.sessions.find((s) => s.id === `${id}-b${i}`)?.topic ?? `Buổi ${i}`,
+            });
+            sessions = [...d.sessions.filter((s) => s.classId !== id), ...done, ...regenerated];
+          }
+          return { ...d, classes: d.classes.map((c) => (c.id === id ? next : c)), sessions };
+        });
+        return {};
+      },
+      enroll: (sid, classId) => {
+        const cls = data.classes.find((c) => c.id === classId);
+        if (!cls) return { error: "Không tìm thấy lớp." };
+        const active = data.enrollments.filter((e) => e.classId === classId && e.status === "active");
+        if (active.some((e) => e.studentId === sid)) return { error: "Học viên đã ở trong lớp này." };
+        const cap = cls.type === "ONE_ON_ONE" ? 1 : cls.type === "ONE_ON_TWO" ? 2 : 12;
+        if (active.length >= cap) return { error: `${cls.name} đã đủ ${cap} học viên.` };
+        setData((d) => ({
+          ...d,
+          enrollments: [
+            ...d.enrollments.filter((e) => !(e.classId === classId && e.studentId === sid)),
+            { studentId: sid, classId, joinedAt: stamp(), status: "active" },
+          ],
+        }));
+        return {};
+      },
+      unenroll: (sid, classId) =>
+        setData((d) => ({
+          ...d,
+          enrollments: d.enrollments.filter((e) => !(e.classId === classId && e.studentId === sid)),
+        })),
+      createStudent: (input) => {
+        const email = input.email.trim().toLowerCase();
+        if (data.accounts.some((a) => a.email.toLowerCase() === email))
+          return { error: "Gmail này đã gắn với một tài khoản khác." };
+        const yy = String(new Date().getFullYear()).slice(-2);
+        const seq = Math.max(0, ...data.students.map((x) => Number(x.code.slice(-3)) || 0)) + 1;
+        const id = `s-${crypto.randomUUID().slice(0, 6)}`;
+        const st: Student = {
+          id,
+          code: `YS-${yy}${String(seq).padStart(3, "0")}`,
+          fullName: input.fullName.trim(),
+          email,
+          phone: input.phone?.trim() || undefined,
+          joinedAt: stamp(),
+        };
+        setData((d) => ({
+          ...d,
+          students: [...d.students, st],
+          accounts: [...d.accounts, { id: `acc-${id}`, email, name: st.fullName, role: "student", profileId: id }],
+        }));
+        return { id };
+      },
+      updateStudent: (id, patch) => {
+        const email = patch.email?.trim().toLowerCase();
+        if (email && data.accounts.some((a) => a.email.toLowerCase() === email && a.profileId !== id))
+          return { error: "Gmail này đã gắn với một tài khoản khác." };
+        setData((d) => ({
+          ...d,
+          students: d.students.map((x) => (x.id === id ? { ...x, ...patch, ...(email ? { email } : {}) } : x)),
+          accounts: d.accounts.map((a) =>
+            a.profileId === id
+              ? { ...a, ...(email ? { email } : {}), ...(patch.fullName ? { name: patch.fullName } : {}) }
+              : a,
+          ),
+        }));
+        return {};
+      },
+      createTeacher: (input) => {
+        const email = input.email.trim().toLowerCase();
+        if (data.accounts.some((a) => a.email.toLowerCase() === email))
+          return { error: "Email này đã gắn với một tài khoản khác." };
+        const id = `t-${crypto.randomUUID().slice(0, 6)}`;
+        const t: Teacher = { ...input, id, email, fullName: input.fullName.trim() };
+        setData((d) => ({
+          ...d,
+          teachers: [...d.teachers, t],
+          accounts: [...d.accounts, { id: `acc-${id}`, email, name: t.fullName, role: "teacher", profileId: id }],
+        }));
+        return { id };
+      },
+      updateTeacher: (id, patch) => {
+        const email = patch.email?.trim().toLowerCase();
+        if (email && data.accounts.some((a) => a.email.toLowerCase() === email && a.profileId !== id))
+          return { error: "Email này đã gắn với một tài khoản khác." };
+        setData((d) => ({
+          ...d,
+          teachers: d.teachers.map((x) => (x.id === id ? { ...x, ...patch, ...(email ? { email } : {}) } : x)),
+          accounts: d.accounts.map((a) =>
+            a.profileId === id
+              ? { ...a, ...(email ? { email } : {}), ...(patch.fullName ? { name: patch.fullName } : {}) }
+              : a,
+          ),
+        }));
+        return {};
       },
     };
   }, [ready, now, data, account, signIn, signInByEmail, signOut]);

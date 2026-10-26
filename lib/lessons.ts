@@ -273,6 +273,58 @@ export const LESSONS: Record<string, LessonTemplate[]> = {
       },
     },
   ],
+  writing: [
+    {
+      topic: "Paragraph structure",
+      points: [
+        "Một đoạn văn: **topic sentence**, 2–3 câu triển khai, câu kết.",
+        "Mỗi đoạn chỉ một ý chính; ví dụ phải phục vụ ý đó.",
+        "Từ nối theo chức năng: thêm ý, đối lập, nguyên nhân, kết quả.",
+      ],
+      vocab: [
+        v("coherent", "adj", "mạch lạc", "logical and easy to follow"),
+        v("elaborate", "v", "triển khai chi tiết", "to add more information or explain"),
+        v("furthermore", "adv", "hơn nữa", "used to add another point"),
+      ],
+      homework: {
+        title: "Viết 1 đoạn 120 từ",
+        instructions: "Chủ đề: lợi ích của việc học online. Gạch chân topic sentence và các từ nối đã dùng.",
+      },
+    },
+    {
+      topic: "Opinion essay",
+      points: [
+        "Mở bài: paraphrase đề + nêu quan điểm rõ ràng.",
+        "Thân bài 2 đoạn, mỗi đoạn một lý do có ví dụ cụ thể.",
+        "Kết bài nhắc lại quan điểm, không đưa ý mới.",
+      ],
+      vocab: [
+        v("advocate", "v", "ủng hộ", "to publicly support an idea"),
+        v("compelling", "adj", "thuyết phục", "making you believe something"),
+        v("drawback", "n", "hạn chế", "a disadvantage"),
+      ],
+      homework: {
+        title: "Dàn ý opinion essay",
+        instructions: "Lập dàn ý chi tiết cho đề trong file đính kèm, mỗi đoạn ghi ý chính và ví dụ.",
+      },
+    },
+    {
+      topic: "Cohesion and referencing",
+      points: [
+        "Tránh lặp từ bằng đại từ và từ thay thế: *this, these, such*.",
+        "Ví dụ chữa bài: lặp *technology* 6 lần trong 1 đoạn.",
+        "Đọc lại bài theo từng câu, kiểm tra mỗi đại từ chỉ rõ đối tượng.",
+      ],
+      vocab: [
+        v("repetition", "n", "sự lặp lại", "saying or writing the same thing again"),
+        v("refer to", "phr v", "đề cập đến", "to mention or be about something"),
+      ],
+      homework: {
+        title: "Sửa đoạn văn bị lặp từ",
+        instructions: "Viết lại đoạn văn trong tài liệu, giảm lặp từ bằng đại từ và từ đồng nghĩa.",
+      },
+    },
+  ],
   grammar: [
     {
       topic: "Present simple vs present continuous",

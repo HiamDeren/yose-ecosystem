@@ -35,7 +35,8 @@ export function StudentHome({ account }: { account: Account }) {
         title={`Chào ${givenName(student.fullName)}`}
         sub={
           <>
-            Mã học viên <b className="font-semibold text-ink">{student.code}</b>, đang học {classes.length} lớp
+            Mã học viên <b className="font-semibold text-ink">{student.code}</b>, đang học{" "}
+            {classes.filter((c) => c.status !== "finished").length} lớp
           </>
         }
       />
@@ -53,12 +54,26 @@ export function StudentHome({ account }: { account: Account }) {
 
       <section>
         <SectionTitle>Lớp của bạn</SectionTitle>
-        <div className="grid gap-4 md:grid-cols-2">
-          {classes.map((c) => (
-            <ClassTile key={c.id} cls={c} studentId={student.id} />
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {classes
+            .filter((c) => c.status !== "finished")
+            .map((c) => (
+              <ClassTile key={c.id} cls={c} studentId={student.id} />
+            ))}
         </div>
       </section>
+      {classes.some((c) => c.status === "finished") && (
+        <section className="mt-10">
+          <SectionTitle>Lớp đã học</SectionTitle>
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {classes
+              .filter((c) => c.status === "finished")
+              .map((c) => (
+                <ClassTile key={c.id} cls={c} studentId={student.id} />
+              ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }
@@ -156,7 +171,7 @@ export function TeacherHome({ account }: { account: Account }) {
 
       <section>
         <SectionTitle>Lớp đang dạy</SectionTitle>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {classes.map((c) => (
             <ClassTile key={c.id} cls={c} />
           ))}
@@ -176,8 +191,8 @@ export function AdminHome() {
   const review = awaitingReview(data, data.classes.map((c) => c.id));
 
   const stats = [
-    { label: "Học viên", value: data.students.length, href: "/admin/students" },
-    { label: "Lớp đang mở", value: data.classes.filter((c) => c.status === "active").length, href: "/admin/classes" },
+    { label: "Học viên", value: data.students.length, href: "/admin/manage/students" },
+    { label: "Lớp đang chạy", value: data.classes.filter((c) => c.status === "active").length, href: "/admin/manage/classes" },
     { label: "Buổi học 7 ngày tới", value: thisWeek.length },
     { label: "Bài chờ chấm", value: review.length },
   ];
@@ -206,8 +221,8 @@ export function AdminHome() {
       </dl>
 
       <section>
-        <SectionTitle aside={<Link href="/admin/classes" className="text-brand">Quản lý lớp</Link>}>
-          Các lớp
+        <SectionTitle aside={<Link href="/admin/manage/classes" className="text-brand">Quản lý lớp</Link>}>
+          Lớp đang chạy và sắp khai giảng
         </SectionTitle>
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
@@ -221,12 +236,12 @@ export function AdminHome() {
               </tr>
             </thead>
             <tbody className="divide-y divide-rule">
-              {data.classes.map((c) => {
+              {data.classes.filter((c) => c.status !== "finished").map((c) => {
                 const p = progressOf(data, c);
                 return (
                   <tr key={c.id} className="hover:bg-surface-2">
                     <td className="px-4 py-3">
-                      <Link href={`/classes/${c.id}`} className="font-medium hover:text-brand">
+                      <Link href={`/admin/manage/classes?id=${c.id}`} className="font-medium hover:text-brand">
                         {c.name}
                       </Link>
                       <div className="text-xs text-muted">{c.code}</div>

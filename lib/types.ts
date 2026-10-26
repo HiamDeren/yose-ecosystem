@@ -50,6 +50,8 @@ export interface ClassGroup {
   name: string;
   type: ClassType;
   level: string;
+  /** Mô tả ngắn: mục tiêu, đối tượng của lớp */
+  description?: string;
   teacherId: string;
   schedule: Weekday[];
   totalSessions: number;

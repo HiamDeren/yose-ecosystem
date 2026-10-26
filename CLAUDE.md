@@ -16,14 +16,14 @@ Nền tảng cho trung tâm tiếng Anh Yose, thay cho việc ghi note và homew
   - **tài liệu buổi học** (file đính kèm: PDF, mp3, slide…);
   - điểm danh + nhận xét riêng từng học viên;
   - homework: file đề kèm theo, học viên nộp file/ảnh/**ghi âm ngay trên trình duyệt**/chữ/link, GV chấm điểm.
-- Vai trò: học viên, giáo viên, admin.
+- Vai trò: học viên, giáo viên, admin. Admin có tab **Quản lý** chia theo đối tượng **Lớp – Học viên – Giáo viên**: lớp nhóm theo trạng thái (Đang chạy / Sắp khai giảng / Đã kết thúc) kèm tổng quan theo trình độ; học viên thấy đang học lớp nào, xếp lớp có kiểm tra sĩ số; giáo viên kèm giờ dạy và lương tạm tính.
 - **Giai đoạn sau:** gộp quản lý giáo viên, giờ dạy, lương vào cùng app. Vì vậy `ClassSession` đã lưu `teacherId` (người thực dạy, kể cả dạy thay) và `durationMin`; schema có sẵn bảng `Payroll`.
 
 Repo `HiamDeren/yose-classroom` là repo khác (nơi chủ dự án lưu tài liệu theo lớp của mình), **không đụng vào**.
 
 ## Trạng thái hiện tại: bản demo
 
-- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage** (key `yose-center-demo-v2`; đổi shape dữ liệu thì tăng version). Nội dung file đính kèm lưu trong **IndexedDB** (`lib/file-store.ts`); file mẫu có `sample: true`, không có nội dung. Chưa có database, chưa có S3, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
+- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage** (key `yose-center-demo-v3`; đổi shape dữ liệu thì tăng version). Nội dung file đính kèm lưu trong **IndexedDB** (`lib/file-store.ts`); file mẫu có `sample: true`, không có nội dung. Chưa có database, chưa có S3, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
 - `npm run dev` là chạy được, không cần biến môi trường.
 - Chi tiết idea, phân quyền, stack, lộ trình: `docs/ARCHITECTURE.md`. Schema đề xuất: `prisma/schema.prisma` (Prisma **chưa cài**).
 
@@ -43,11 +43,15 @@ app/(app)/classes/[classId]/                 Dòng thời gian buổi học (com
 app/(app)/classes/[classId]/sessions/[sessionId]/
                                              Buổi học, tab qua ?tab=note|homework|attendance (components/session-view.tsx)
 app/(app)/homework/                          Học viên: mọi bài tập; GV: hàng chờ chấm
-app/(app)/admin/{students,classes,teachers}/ Chỉ admin (components/admin-guard.tsx)
+app/(app)/admin/manage/{classes,students,teachers}/
+                                             Admin > Quản lý, 3 sub-tab theo đối tượng Lớp / Học viên / Giáo viên
+                                             (components/manage/*). Panel chi tiết mở bằng ?id=<id> hoặc ?id=new
 lib/types.ts                                 Kiểu domain, khớp 1-1 với prisma/schema.prisma
 lib/store.tsx                                StoreProvider + useStore(): data, account, now, mọi action ghi
 lib/selectors.ts                             Truy vấn thuần: lớp theo account, quyền, trạng thái bài, giờ dạy
 lib/file-store.ts                            Kho file demo (IndexedDB); production thay bằng S3 presigned URL
+lib/levels.ts                                Danh mục trình độ (Intern → IELTS 6.0+) kèm mô tả
+lib/schedule.ts                              Sinh buổi học từ lịch tuần (dùng khi tạo lớp / đổi lịch)
 lib/mock-data.ts, lib/lessons.ts             Sinh dữ liệu mẫu tương đối theo ngày hiện tại
 components/rich-editor.tsx                   TipTap: NoteEditor (soạn) và NoteContent (chỉ đọc)
 components/note-panel.tsx                    Tab Note: trạng thái nháp/công bố, workspace tự lưu, tài liệu buổi học
@@ -69,6 +73,7 @@ components/homework-panel.tsx                Giao bài (kèm file), nộp bài (
 
 ## Thiết kế
 
+- Sidebar desktop thu thành thanh icon 4rem, rê chuột/focus thì mở 15.5rem đè lên nội dung; nút ghim (lưu `yose-sidebar-pinned`) thì luôn mở và đẩy nội dung. Biến CSS `--rail` quyết định padding trái của nội dung. Nội dung trang full width, không đặt max-width; trang buổi học chia 2 cột từ `xl` (note | từ vựng + tài liệu).
 - Chủ đề "sổ tay lớp học": mực xanh trên giấy lạnh. Màu là CSS token trong `app/globals.css` (light + dark qua `prefers-color-scheme` và `data-theme`), dùng qua class Tailwind như `bg-surface`, `text-ink`, `text-muted`, `border-rule`, `bg-brand`.
 - Màu theo loại lớp: `t11` (1-1, tím), `t12` (1-2, xanh ngọc), `tg` (nhóm, hồng). Dùng `ClassTypeBadge` và `TYPE_BAR` trong `components/ui.tsx`.
 - Class `.hl` (vệt bút dạ quang vàng) **chỉ dùng cho việc cần làm** (bài chưa nộp, bài chờ chấm, buổi chưa có note). Class `.margin-line` (đường lề đỏ của vở) dùng cho dòng thời gian buổi học và trang note.

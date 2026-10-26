@@ -49,6 +49,8 @@ const studentSeeds: [string, string, string][] = [
   ["s-myduyen", "Trương Mỹ Duyên", "myduyen.truong.ys@gmail.com"],
   ["s-thanhtam", "Mai Thanh Tâm", "thanhtam.mai.ys@gmail.com"],
   ["s-phuonguyen", "Cao Phương Uyên", "phuonguyen.cao.ys@gmail.com"],
+  ["s-giabao", "Đinh Gia Bảo", "giabao.dinh.ys@gmail.com"],
+  ["s-thutrang", "Hồ Thu Trang", "thutrang.ho.ys@gmail.com"],
 ];
 
 function mondayOf(d: Date) {
@@ -75,6 +77,7 @@ export function buildMockData(now = new Date()): YoseData {
   const classes: ClassGroup[] = [
     {
       id: "c-spk",
+      description: "Luyện nói 1-1 theo 3 part của IELTS Speaking, sửa phát âm từng buổi.",
       code: "11-SPK-07",
       name: "Speaking 1-1 IELTS",
       type: "ONE_ON_ONE",
@@ -90,6 +93,7 @@ export function buildMockData(now = new Date()): YoseData {
     },
     {
       id: "c-com",
+      description: "Giao tiếp công sở và đời sống cho 2 học viên, học qua roleplay.",
       code: "12-COM-03",
       name: "Communication 1-2",
       type: "ONE_ON_TWO",
@@ -105,6 +109,7 @@ export function buildMockData(now = new Date()): YoseData {
     },
     {
       id: "c-rl",
+      description: "Reading và Listening nền tảng cho nhóm mới bắt đầu.",
       code: "G-INT-RL-02",
       name: "Intern Read-Lis",
       type: "GROUP",
@@ -120,6 +125,7 @@ export function buildMockData(now = new Date()): YoseData {
     },
     {
       id: "c-gram",
+      description: "Ngữ pháp trọng tâm, mỗi buổi một chủ điểm kèm bài tập workbook.",
       code: "G-PRE-GR-01",
       name: "Pre-Inter Grammar",
       type: "GROUP",
@@ -133,6 +139,51 @@ export function buildMockData(now = new Date()): YoseData {
       startDate: weeksAgo(3),
       status: "active",
     },
+    {
+      id: "c-wri",
+      description: "Viết đoạn và bài luận ngắn, chữa bài chi tiết theo tiêu chí.",
+      code: "G-INT-WR-01",
+      name: "Intermediate Writing",
+      type: "GROUP",
+      level: "Intermediate",
+      teacherId: "t-ha",
+      schedule: [
+        { day: 2, start: "18:00", durationMin: 90 },
+        { day: 4, start: "18:00", durationMin: 90 },
+      ],
+      totalSessions: 20,
+      startDate: weeksAgo(2),
+      status: "active",
+    },
+    {
+      id: "c-pie",
+      description: "Lớp mới khai giảng: làm quen format IELTS, mục tiêu 5.0.",
+      code: "G-PIE-FD-01",
+      name: "Pre-IELTS Foundation",
+      type: "GROUP",
+      level: "Pre-IELTS",
+      teacherId: "t-kevin",
+      schedule: [{ day: 6, start: "14:00", durationMin: 120 }],
+      totalSessions: 24,
+      startDate: weeksAgo(-2),
+      status: "upcoming",
+    },
+    {
+      id: "c-old",
+      description: "Khóa trước của Intern Read-Lis.",
+      code: "G-INT-RL-01",
+      name: "Intern Read-Lis K01",
+      type: "GROUP",
+      level: "Intern",
+      teacherId: "t-kevin",
+      schedule: [
+        { day: 2, start: "19:30", durationMin: 120 },
+        { day: 5, start: "17:30", durationMin: 120 },
+      ],
+      totalSessions: 16,
+      startDate: weeksAgo(20),
+      status: "finished",
+    },
   ];
 
   const track: Record<string, keyof typeof LESSONS> = {
@@ -140,6 +191,9 @@ export function buildMockData(now = new Date()): YoseData {
     "c-com": "communication",
     "c-rl": "readlis",
     "c-gram": "grammar",
+    "c-wri": "writing",
+    "c-pie": "readlis",
+    "c-old": "readlis",
   };
 
   const roster: Record<string, string[]> = {
@@ -150,6 +204,9 @@ export function buildMockData(now = new Date()): YoseData {
       "s-baochau", "s-ducminh", "s-khanhlinh", "s-hoangnam",
     ],
     "c-gram": ["s-thaovy", "s-myduyen", "s-thanhtam", "s-phuonguyen", "s-quocbao", "s-ngochan"],
+    "c-wri": ["s-baochau", "s-ducminh", "s-khanhlinh", "s-myduyen", "s-hoangnam"],
+    "c-pie": ["s-tuankiet", "s-ngochan", "s-phuonguyen"],
+    "c-old": ["s-giahuy", "s-quocbao", "s-thanhtam"],
   };
 
   const enrollments: Enrollment[] = Object.entries(roster).flatMap(([classId, ids]) =>
@@ -350,6 +407,10 @@ const MATERIALS: Record<keyof typeof LESSONS, { name: string; size: number; mime
   readlis: [
     { name: "Reading passage buoi {n}.pdf", size: 2_350_000, mime: "application/pdf" },
     { name: "Listening section buoi {n}.mp3", size: 6_100_000, mime: "audio/mpeg" },
+  ],
+  writing: [
+    { name: "De bai viet buoi {n}.pdf", size: 150_000, mime: "application/pdf" },
+    { name: "Bai mau band cao.docx", size: 62_000, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
   ],
   grammar: [
     { name: "Slide ngu phap buoi {n}.pptx", size: 1_800_000, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
