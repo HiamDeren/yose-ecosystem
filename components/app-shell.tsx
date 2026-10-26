@@ -44,11 +44,12 @@ function useNav(account: Account): NavItem[] {
     return [
       { href: "/", label: "Lớp đang dạy", icon: IconBook, match: ["/classes"] },
       { href: "/homework", label: "Chờ chấm", icon: IconTasks, badge: awaitingReview(data, ids).length },
+      { href: "/manage/classes", label: "Quản lý", icon: IconSettings, match: ["/manage"] },
     ];
   }
   return [
     { href: "/", label: "Tổng quan", icon: IconHome },
-    { href: "/admin/manage/classes", label: "Quản lý", icon: IconSettings, match: ["/admin/manage", "/classes"] },
+    { href: "/manage/classes", label: "Quản lý", icon: IconSettings, match: ["/manage", "/classes"] },
   ];
 }
 
@@ -123,6 +124,12 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
   const [focusIn, setFocusIn] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const closeTimer = useRef<number | null>(null);
+  const scroller = useRef<HTMLElement>(null);
+
+  // Khung cuộn riêng nên phải tự đưa về đầu trang khi chuyển trang
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [pathname]);
 
   useEffect(() => {
     try {
@@ -149,7 +156,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
   };
 
   return (
-    <div className="min-h-screen" style={{ ["--rail" as string]: pinned ? FULL : RAIL }}>
+    <div className="h-dvh overflow-hidden" style={{ ["--rail" as string]: pinned ? FULL : RAIL }}>
       {/* Sidebar (desktop) */}
       <aside
         onMouseEnter={() => {
@@ -270,9 +277,9 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-col transition-[padding] duration-200 ease-out lg:pl-[var(--rail)]">
+      <div className="flex h-dvh flex-col transition-[padding] duration-200 ease-out lg:pl-[var(--rail)]">
         {/* Top bar (mobile) */}
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-rule bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="z-20 flex shrink-0 items-center justify-between border-b border-rule bg-surface px-4 py-3 lg:hidden">
           <Link href="/" className="flex items-center gap-2">
             <Logo />
             <span className="font-semibold tracking-tight">Yose Home</span>
@@ -290,7 +297,14 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
           </div>
         </header>
 
-        <main className="w-full flex-1 px-4 pb-28 pt-6 sm:px-8 lg:px-10 lg:pb-12 lg:pt-9">{children}</main>
+        {/* Nội dung cuộn trong khung riêng, sidebar và header đứng yên */}
+        <main
+          ref={scroller}
+          id="app-scroll"
+          className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-6 sm:px-8 lg:px-10 lg:pb-12 lg:pt-9"
+        >
+          {children}
+        </main>
       </div>
 
       {/* Bottom nav (mobile) */}

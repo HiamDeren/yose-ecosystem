@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ImageViewerHost } from "@/components/editor/image-viewer";
 import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full">
         <StoreProvider>{children}</StoreProvider>
+        <ImageViewerHost />
       </body>
     </html>
   );

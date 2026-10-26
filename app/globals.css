@@ -43,6 +43,8 @@
   --hl-blue: #cfe0ff;
   --hl-pink: #ffd3e2;
   --hl-orange: #ffdcb8;
+  --scroll-thumb: rgb(24 32 58 / 0.22);
+  --scroll-thumb-hover: rgb(24 32 58 / 0.38);
   --shadow: 0 1px 2px rgb(24 32 58 / 0.06), 0 8px 24px -12px rgb(24 32 58 / 0.18);
   color-scheme: light;
 }
@@ -84,6 +86,8 @@
   --hl-blue: rgb(96 165 250 / 0.28);
   --hl-pink: rgb(244 114 182 / 0.28);
   --hl-orange: rgb(251 146 60 / 0.28);
+  --scroll-thumb: rgb(185 193 217 / 0.22);
+  --scroll-thumb-hover: rgb(185 193 217 / 0.4);
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
@@ -124,6 +128,8 @@
   --hl-blue: rgb(96 165 250 / 0.28);
   --hl-pink: rgb(244 114 182 / 0.28);
   --hl-orange: rgb(251 146 60 / 0.28);
+  --scroll-thumb: rgb(185 193 217 / 0.22);
+  --scroll-thumb-hover: rgb(185 193 217 / 0.4);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
@@ -432,6 +438,33 @@ body {
   text-decoration: line-through;
 }
 
+/* Nhiều ảnh trong 1 ô bảng: xếp cạnh nhau.
+   ReactNodeViewRenderer bọc mỗi ảnh trong div.node-image, nên style đặt ở lớp bọc này. */
+.prose-note td .node-image,
+.prose-note th .node-image {
+  display: inline-block;
+  vertical-align: top;
+  width: 48%;
+  margin: 0.25em 1%;
+}
+.prose-note td .node-image:has(.note-image[data-width="sm"]),
+.prose-note th .node-image:has(.note-image[data-width="sm"]) {
+  width: 31%;
+}
+.prose-note td .node-image:has(.note-image[data-width="full"]),
+.prose-note th .node-image:has(.note-image[data-width="full"]) {
+  width: 98%;
+}
+.prose-note td .note-image,
+.prose-note th .note-image {
+  margin: 0;
+  text-align: left;
+}
+.prose-note td .note-image img,
+.prose-note th .note-image img {
+  width: 100% !important;
+}
+
 /* Ảnh */
 .prose-note .note-image {
   display: block;
@@ -445,6 +478,7 @@ body {
   text-align: right;
 }
 .prose-note .note-image img {
+  cursor: zoom-in;
   display: inline-block;
   max-width: 100%;
   height: auto;
@@ -476,6 +510,40 @@ body {
 }
 .ProseMirror-gapcursor:after {
   border-top-color: var(--ink);
+}
+
+/* Thanh cuộn mảnh, màu theo theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none;
+}
+/* Dải tab cuộn ngang: không hiện thanh cuộn */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

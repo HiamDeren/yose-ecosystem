@@ -14,9 +14,9 @@ import {
 } from "@/lib/selectors";
 import { useStore } from "@/lib/store";
 import type { Account, ClassGroup, ClassSession, YoseData } from "@/lib/types";
-import { CLASS_CAPACITY } from "@/lib/types";
 import { IconBack, IconBook, IconChevron, IconTasks } from "./icons";
-import { AttendanceDot, Avatar, ClassTypeBadge, Empty, HomeworkStatus, PageHeader, TYPE_BAR } from "./ui";
+import { Roster } from "./manage/classes-manager";
+import { AttendanceDot, ClassTypeBadge, Empty, HomeworkStatus, PageHeader, TYPE_BAR } from "./ui";
 
 export function BackLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -43,7 +43,6 @@ export function ClassView() {
   const future = sessions.filter((s) => s.status === "scheduled");
   const visibleFuture = showAll ? future : future.slice(0, 2);
   const { done, total } = progressOf(data, cls);
-  const roster = rosterOf(data, cls.id);
   const staff = account.role !== "student";
 
   return (
@@ -76,7 +75,7 @@ export function ClassView() {
         }
       />
 
-      <div className={staff ? "grid gap-8 lg:grid-cols-[1fr_260px]" : ""}>
+      <div className={staff ? "grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
         <div>
           {future.length > 0 && (
             <section className="mb-8">
@@ -113,24 +112,8 @@ export function ClassView() {
         </div>
 
         {staff && (
-          <aside>
-            <h2 className="mb-2 text-[0.95rem] font-semibold">
-              Học viên{" "}
-              <span className="font-normal text-muted">
-                {roster.length}/{CLASS_CAPACITY[cls.type]}
-              </span>
-            </h2>
-            <ul className="divide-y divide-rule rounded-xl border border-rule bg-surface">
-              {roster.map((st) => (
-                <li key={st.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <Avatar name={st.fullName} size={28} tone="plain" />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm">{st.fullName}</div>
-                    <div className="text-xs text-muted tabular-nums">{st.code}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+          <aside className="lg:sticky lg:top-0 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:pb-4">
+            <Roster cls={cls} bordered={false} />
           </aside>
         )}
       </div>

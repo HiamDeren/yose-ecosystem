@@ -36,16 +36,21 @@ Schema đầy đủ: [`prisma/schema.prisma`](../prisma/schema.prisma).
 
 ## 4. Phân quyền
 
+Ba vai trò: **Admin** (1–2 tài khoản), **Giáo viên**, **Học viên**.
+
 | Hành động | Học viên | Giáo viên | Admin |
 |---|---|---|---|
 | Xem lớp | Lớp mình được ghi danh | Lớp mình dạy | Tất cả |
-| Xem note buổi học | Có | Có | Có |
-| Sửa note, giao homework | Không | Lớp mình dạy | Có |
+| Xem note buổi học | Khi đã công bố | Có | Có |
+| Soạn note, giao homework, chấm bài, điểm danh | Không | Lớp mình dạy | Có |
 | Nộp bài | Bài của mình | Không | Không |
-| Chấm bài, điểm danh | Không | Lớp mình dạy | Có |
-| Quản lý học viên, lớp, lương | Không | Không | Có |
+| Quản lý > Lớp học | Không | Chỉ lớp mình dạy; xem thông tin lớp, **thêm/rút học viên** | Tạo, sửa lớp, lịch, giáo viên phụ trách |
+| Quản lý > Học viên | Không | Xem danh sách có sẵn, xếp vào lớp mình dạy | Thêm học viên, sửa thông tin, xếp mọi lớp |
+| Quản lý > Giáo viên (giờ dạy, lương) | Không | **Không thấy** | Có |
+| Cấp/thu quyền Admin | Không | Không | Có (không tự thu quyền mình, luôn giữ ít nhất 1) |
 
-Kiểm tra quyền **luôn ở server** (Server Action / Route Handler), UI chỉ ẩn nút.
+Giáo viên không tạo học viên mới: chỉ chọn từ danh sách học viên admin đã nhập (ô tìm theo tên, mã, Gmail, SĐT).
+Kiểm tra quyền **luôn ở server** (Server Action / Route Handler), UI chỉ ẩn nút. Trong demo, `lib/selectors.ts` có `isAdmin`, `isStaff`, `canManageRoster` và store gọi lại các hàm này.
 
 ## 5. Stack đề xuất
 

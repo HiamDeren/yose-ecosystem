@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
+import { isAdmin, isStaff } from "@/lib/selectors";
 import { useStore } from "@/lib/store";
 import { IconSearch, IconX } from "../icons";
 import { Empty } from "../ui";
@@ -12,12 +13,18 @@ import { Empty } from "../ui";
 export function ManageShell({ children }: { children: ReactNode }) {
   const { data, account } = useStore();
   const pathname = usePathname();
-  if (account?.role !== "admin") return <Empty>Trang này chỉ dành cho quản trị viên.</Empty>;
+  if (!isStaff(account)) return <Empty>Trang này dành cho giáo viên và quản trị viên.</Empty>;
+  const admin = isAdmin(account);
 
   const tabs = [
-    { href: "/admin/manage/classes", label: "Lớp học", count: data.classes.length },
-    { href: "/admin/manage/students", label: "Học viên", count: data.students.length },
-    { href: "/admin/manage/teachers", label: "Giáo viên", count: data.teachers.length },
+    {
+      href: "/manage/classes",
+      label: admin ? "Lớp học" : "Lớp của tôi",
+      count: admin ? data.classes.length : data.classes.filter((c) => c.teacherId === account!.profileId).length,
+    },
+    { href: "/manage/students", label: "Học viên", count: data.students.length },
+    // Danh sách giáo viên, giờ dạy và lương: chỉ tài khoản quản trị
+    ...(admin ? [{ href: "/manage/teachers", label: "Giáo viên", count: data.teachers.length }] : []),
   ];
 
   return (
@@ -25,10 +32,12 @@ export function ManageShell({ children }: { children: ReactNode }) {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]">Quản lý</h1>
         <p className="mt-1.5 text-sm text-muted">
-          Thiết lập lớp, danh sách học viên và giáo viên. Xếp học viên vào lớp ở tab Lớp học hoặc Học viên.
+          {admin
+            ? "Thiết lập lớp, danh sách học viên và giáo viên. Xếp học viên vào lớp ở tab Lớp học hoặc Học viên."
+            : "Xếp học viên có sẵn vào các lớp bạn phụ trách. Thông tin lớp và học viên mới do quản trị viên tạo."}
         </p>
       </header>
-      <nav aria-label="Quản lý" className="mb-6 flex gap-1 overflow-x-auto border-b border-rule">
+      <nav aria-label="Quản lý" className="no-scrollbar mb-6 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--rule)]">
         {tabs.map((t) => {
           const active = pathname.startsWith(t.href);
           return (
@@ -36,7 +45,7 @@ export function ManageShell({ children }: { children: ReactNode }) {
               key={t.href}
               href={t.href}
               aria-current={active ? "page" : undefined}
-              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition ${
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition ${
                 active ? "border-brand font-semibold text-ink" : "border-transparent text-muted hover:text-ink"
               }`}
             >
@@ -187,4 +196,10 @@ export function CapacityBar({ used, cap }: { used: number; cap: number }) {
       )}
     </span>
   );
+}
+
+export function AdminOnly({ children }: { children: ReactNode }) {
+  const { account } = useStore();
+  if (!isAdmin(account)) return <Empty>Chỉ tài khoản quản trị mới xem được danh sách giáo viên.</Empty>;
+  return <>{children}</>;
 }

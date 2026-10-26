@@ -9,6 +9,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { CharacterCount, Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { NodeSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NoteImage, shrinkImage } from "./editor/note-image";
@@ -105,7 +106,10 @@ export function NoteEditor({
       const blob = await shrinkImage(f);
       const fileId = await upload.current(blob, f.name);
       const node = { type: "image", attrs: { fileId, alt: f.name.replace(/\.[^.]+$/, ""), width: "md", align: "center" } };
-      if (pos !== undefined) ed.chain().focus().insertContentAt(pos, node).run();
+      // Ảnh vừa chèn đang được chọn: chèn tiếp ngay sau nó thay vì ghi đè (để 2 ảnh nằm cùng 1 ô)
+      const sel = ed.state.selection;
+      const at = pos ?? (sel instanceof NodeSelection ? sel.to : undefined);
+      if (at !== undefined) ed.chain().focus().insertContentAt(at, node).run();
       else ed.chain().focus().insertContent(node).run();
     }
   };
@@ -211,7 +215,7 @@ function Toolbar({
   const c = () => editor.chain().focus();
 
   return (
-    <div className="sticky top-[3.6rem] z-10 rounded-t-xl border-b border-rule bg-surface-2/95 backdrop-blur lg:top-0">
+    <div className="sticky top-0 z-10 rounded-t-xl border-b border-rule bg-surface-2/95 backdrop-blur">
       <div role="toolbar" aria-label="Định dạng" className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
         <Tool label="Hoàn tác (Ctrl+Z)" disabled={!s.canUndo} onClick={() => c().undo().run()}>
           <Svg d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />

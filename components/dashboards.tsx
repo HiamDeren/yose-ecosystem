@@ -191,8 +191,8 @@ export function AdminHome() {
   const review = awaitingReview(data, data.classes.map((c) => c.id));
 
   const stats = [
-    { label: "Học viên", value: data.students.length, href: "/admin/manage/students" },
-    { label: "Lớp đang chạy", value: data.classes.filter((c) => c.status === "active").length, href: "/admin/manage/classes" },
+    { label: "Học viên", value: data.students.length, href: "/manage/students" },
+    { label: "Lớp đang chạy", value: data.classes.filter((c) => c.status === "active").length, href: "/manage/classes" },
     { label: "Buổi học 7 ngày tới", value: thisWeek.length },
     { label: "Bài chờ chấm", value: review.length },
   ];
@@ -221,7 +221,7 @@ export function AdminHome() {
       </dl>
 
       <section>
-        <SectionTitle aside={<Link href="/admin/manage/classes" className="text-brand">Quản lý lớp</Link>}>
+        <SectionTitle aside={<Link href="/manage/classes" className="text-brand">Quản lý lớp</Link>}>
           Lớp đang chạy và sắp khai giảng
         </SectionTitle>
         <Panel className="overflow-x-auto">
@@ -241,7 +241,7 @@ export function AdminHome() {
                 return (
                   <tr key={c.id} className="hover:bg-surface-2">
                     <td className="px-4 py-3">
-                      <Link href={`/admin/manage/classes?id=${c.id}`} className="font-medium hover:text-brand">
+                      <Link href={`/manage/classes?id=${c.id}`} className="font-medium hover:text-brand">
                         {c.name}
                       </Link>
                       <div className="text-xs text-muted">{c.code}</div>

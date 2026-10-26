@@ -12,6 +12,7 @@ import {
 import { clearFiles, deleteFile, putFile } from "./file-store";
 import { buildMockData } from "./mock-data";
 import { generateSessions } from "./schedule";
+import { canManageRoster } from "./selectors";
 import type {
   Account,
   Attachment,
@@ -65,6 +66,9 @@ interface StoreValue {
   updateStudent: (id: string, patch: Partial<Pick<Student, "fullName" | "email" | "phone">>) => { error?: string };
   createTeacher: (input: Omit<Teacher, "id">) => { id?: string; error?: string };
   updateTeacher: (id: string, patch: Partial<Omit<Teacher, "id">>) => { error?: string };
+  /** Tài khoản quản trị (chỉ admin) */
+  addAdmin: (name: string, email: string) => { error?: string };
+  removeAdmin: (accountId: string) => { error?: string };
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -335,6 +339,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       enroll: (sid, classId) => {
         const cls = data.classes.find((c) => c.id === classId);
         if (!cls) return { error: "Không tìm thấy lớp." };
+        // Production: kiểm tra lại ở server
+        if (!canManageRoster(data, account, classId)) return { error: "Bạn chỉ xếp được học viên vào lớp mình phụ trách." };
         const active = data.enrollments.filter((e) => e.classId === classId && e.status === "active");
         if (active.some((e) => e.studentId === sid)) return { error: "Học viên đã ở trong lớp này." };
         const cap = cls.type === "ONE_ON_ONE" ? 1 : cls.type === "ONE_ON_TWO" ? 2 : 12;
@@ -349,6 +355,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return {};
       },
       unenroll: (sid, classId) =>
+        canManageRoster(data, account, classId) &&
         setData((d) => ({
           ...d,
           enrollments: d.enrollments.filter((e) => !(e.classId === classId && e.studentId === sid)),
@@ -402,6 +409,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           accounts: [...d.accounts, { id: `acc-${id}`, email, name: t.fullName, role: "teacher", profileId: id }],
         }));
         return { id };
+      },
+      addAdmin: (name, rawEmail) => {
+        if (account?.role !== "admin") return { error: "Chỉ quản trị viên được cấp quyền." };
+        const email = rawEmail.trim().toLowerCase();
+        if (data.accounts.some((a) => a.email.toLowerCase() === email))
+          return { error: "Email này đã có tài khoản. Dùng một email riêng cho tài khoản quản trị." };
+        setData((d) => ({
+          ...d,
+          accounts: [...d.accounts, { id: `acc-adm-${crypto.randomUUID().slice(0, 6)}`, email, name: name.trim(), role: "admin" }],
+        }));
+        return {};
+      },
+      removeAdmin: (accountId) => {
+        if (account?.role !== "admin") return { error: "Chỉ quản trị viên được thu quyền." };
+        if (accountId === account.id) return { error: "Không thể tự thu quyền của chính bạn." };
+        if (data.accounts.filter((a) => a.role === "admin").length <= 1) return { error: "Cần giữ ít nhất 1 tài khoản quản trị." };
+        setData((d) => ({ ...d, accounts: d.accounts.filter((a) => a.id !== accountId) }));
+        return {};
       },
       updateTeacher: (id, patch) => {
         const email = patch.email?.trim().toLowerCase();

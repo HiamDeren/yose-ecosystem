@@ -74,7 +74,7 @@ export function SessionView() {
         }
       />
 
-      <div role="tablist" aria-label="Nội dung buổi học" className="mb-6 flex gap-1 overflow-x-auto border-b border-rule">
+      <div role="tablist" aria-label="Nội dung buổi học" className="no-scrollbar mb-6 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--rule)]">
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
@@ -84,7 +84,7 @@ export function SessionView() {
               type="button"
               aria-selected={active}
               onClick={() => setTab(t.id)}
-              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition ${
+              className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition ${
                 active ? "border-brand font-semibold text-ink" : "border-transparent text-muted hover:text-ink"
               }`}
             >

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function ManageIndex() {
-  redirect("/admin/manage/classes");
+  redirect("/manage/classes");
 }

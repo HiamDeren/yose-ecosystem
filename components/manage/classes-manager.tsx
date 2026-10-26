@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CLASS_TYPE_LABEL, scheduleLabel } from "@/lib/format";
 import { LEVELS, levelOf, levelRank } from "@/lib/levels";
-import { progressOf, rosterOf } from "@/lib/selectors";
+import { canManageRoster, isAdmin, progressOf, rosterOf } from "@/lib/selectors";
 import { useStore } from "@/lib/store";
 import { CLASS_CAPACITY, type ClassGroup, type ClassType, type Weekday } from "@/lib/types";
 import { IconChevron, IconPlus, IconTrash } from "../icons";
@@ -20,7 +20,10 @@ const STATUS: { id: ClassGroup["status"]; title: string }[] = [
 const WEEKDAYS = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 
 export function ClassesManager() {
-  const { data } = useStore();
+  const { data, account } = useStore();
+  const admin = isAdmin(account);
+  // Giáo viên chỉ thấy lớp mình phụ trách
+  const scope = admin ? data.classes : data.classes.filter((c) => c.teacherId === account?.profileId);
   const [id, select] = useSelected();
   const [q, setQ] = useState("");
   const [type, setType] = useState<ClassType | "all">("all");
@@ -28,7 +31,7 @@ export function ClassesManager() {
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return data.classes
+    return scope
       .filter((c) => type === "all" || c.type === type)
       .filter((c) => !level || c.level === level)
       .filter(
@@ -39,10 +42,10 @@ export function ClassesManager() {
           (data.teachers.find((t) => t.id === c.teacherId)?.fullName.toLowerCase().includes(term) ?? false),
       )
       .sort((a, b) => levelRank(a.level) - levelRank(b.level) || a.name.localeCompare(b.name));
-  }, [data.classes, data.teachers, q, type, level]);
+  }, [scope, data.teachers, q, type, level]);
 
   const levelStats = LEVELS.map((l) => {
-    const running = data.classes.filter((c) => c.level === l.name && c.status !== "finished");
+    const running = scope.filter((c) => c.level === l.name && c.status !== "finished");
     const students = new Set(
       data.enrollments.filter((e) => running.some((c) => c.id === e.classId) && e.status === "active").map((e) => e.studentId),
     );
@@ -94,9 +97,11 @@ export function ClassesManager() {
             {level} ×
           </FilterChip>
         )}
-        <Button className="ml-auto" onClick={() => select("new")}>
-          <IconPlus size={16} /> Tạo lớp
-        </Button>
+        {admin && (
+          <Button className="ml-auto" onClick={() => select("new")}>
+            <IconPlus size={16} /> Tạo lớp
+          </Button>
+        )}
       </div>
 
       <div className="space-y-10">
@@ -184,9 +189,11 @@ export function ClassesManager() {
 /* ───────────── panel tạo / sửa lớp ───────────── */
 
 function ClassSheet({ id, onSelect }: { id: string | null; onSelect: (id: string | null) => void }) {
-  const { data } = useStore();
+  const { data, account } = useStore();
+  const admin = isAdmin(account);
   const cls = id && id !== "new" ? data.classes.find((c) => c.id === id) : undefined;
-  const open = id === "new" || !!cls;
+  const visible = cls && (admin || cls.teacherId === account?.profileId);
+  const open = (id === "new" && admin) || !!visible;
   return (
     <Sheet
       open={open}
@@ -194,13 +201,13 @@ function ClassSheet({ id, onSelect }: { id: string | null; onSelect: (id: string
       title={cls ? cls.name : "Tạo lớp mới"}
       subtitle={cls ? `${cls.code}, ${CLASS_TYPE_LABEL[cls.type]}, ${cls.level}` : "Lịch buổi học sẽ được sinh tự động từ lịch tuần."}
     >
-      {open && <ClassForm key={id} cls={cls} onCreated={(nid) => onSelect(nid)} />}
-      {cls && <Roster cls={cls} />}
+      {open && <ClassForm key={id} cls={cls} readOnly={!admin} onCreated={(nid) => onSelect(nid)} />}
+      {cls && visible && <Roster cls={cls} />}
     </Sheet>
   );
 }
 
-function ClassForm({ cls, onCreated }: { cls?: ClassGroup; onCreated: (id: string) => void }) {
+function ClassForm({ cls, readOnly, onCreated }: { cls?: ClassGroup; readOnly?: boolean; onCreated: (id: string) => void }) {
   const { data, createClass, updateClass } = useStore();
   const [name, setName] = useState(cls?.name ?? "");
   const [code, setCode] = useState(cls?.code ?? "");
@@ -239,6 +246,12 @@ function ClassForm({ cls, onCreated }: { cls?: ClassGroup; onCreated: (id: strin
 
   return (
     <form onSubmit={submit} onChange={() => setSaved(false)} className="space-y-4">
+      {readOnly && (
+        <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink-soft">
+          Thông tin lớp do quản trị viên thiết lập. Bạn có thể thêm hoặc rút học viên ở danh sách bên dưới.
+        </p>
+      )}
+      <fieldset disabled={readOnly} className="space-y-4 disabled:opacity-80">
       <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
         <Field label="Tên lớp">
           <input required value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Intern Read-Lis" />
@@ -371,11 +384,14 @@ function ClassForm({ cls, onCreated }: { cls?: ClassGroup; onCreated: (id: strin
           </select>
         </Field>
       </div>
-      {cls && <p className="text-xs text-muted">Đổi lịch, số buổi hoặc giáo viên sẽ xếp lại các buổi chưa học. Buổi đã học giữ nguyên.</p>}
+      {cls && !readOnly && (
+        <p className="text-xs text-muted">Đổi lịch, số buổi hoặc giáo viên sẽ xếp lại các buổi chưa học. Buổi đã học giữ nguyên.</p>
+      )}
+      </fieldset>
 
       <ErrorText>{error}</ErrorText>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit">{cls ? "Lưu thay đổi" : "Tạo lớp"}</Button>
+        {!readOnly && <Button type="submit">{cls ? "Lưu thay đổi" : "Tạo lớp"}</Button>}
         {saved && cls && <span className="text-sm text-ok">Đã lưu</span>}
         {cls && (
           <Link href={`/classes/${cls.id}`} className="ml-auto text-sm text-brand hover:underline">
@@ -387,18 +403,14 @@ function ClassForm({ cls, onCreated }: { cls?: ClassGroup; onCreated: (id: strin
   );
 }
 
-function Roster({ cls }: { cls: ClassGroup }) {
-  const { data, enroll, unenroll } = useStore();
+export function Roster({ cls, bordered = true }: { cls: ClassGroup; bordered?: boolean }) {
+  const { data, account, unenroll } = useStore();
   const roster = rosterOf(data, cls.id);
   const cap = CLASS_CAPACITY[cls.type];
-  const [pick, setPick] = useState("");
-  const [error, setError] = useState("");
-  const candidates = data.students
-    .filter((s) => !roster.some((r) => r.id === s.id))
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const editable = canManageRoster(data, account, cls.id);
 
   return (
-    <section className="border-t border-rule pt-6">
+    <section className={bordered ? "border-t border-rule pt-6" : ""}>
       <h3 className="mb-3 flex items-baseline justify-between text-[0.95rem] font-semibold">
         Học viên trong lớp
         <span className="text-sm font-normal">
@@ -411,20 +423,22 @@ function Roster({ cls }: { cls: ClassGroup }) {
             <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
               <Avatar name={s.fullName} size={30} tone="plain" />
               <div className="min-w-0 flex-1">
-                <Link href={`/admin/manage/students?id=${s.id}`} className="block truncate text-sm font-medium hover:text-brand">
+                <Link href={`/manage/students?id=${s.id}`} className="block truncate text-sm font-medium hover:text-brand">
                   {s.fullName}
                 </Link>
                 <div className="truncate text-xs text-muted">
                   {s.code}, {s.email}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => unenroll(s.id, cls.id)}
-                className="rounded-md px-2 py-1 text-xs text-muted hover:bg-danger-soft hover:text-danger"
-              >
-                Xóa khỏi lớp
-              </button>
+              {editable && (
+                <button
+                  type="button"
+                  onClick={() => unenroll(s.id, cls.id)}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs text-muted hover:bg-danger-soft hover:text-danger"
+                >
+                  Xóa khỏi lớp
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -432,39 +446,126 @@ function Roster({ cls }: { cls: ClassGroup }) {
         <Empty>Lớp chưa có học viên.</Empty>
       )}
 
-      {cls.status !== "finished" && (
-        <form
-          className="mt-3 flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!pick) return;
-            const res = enroll(pick, cls.id);
-            setError(res.error ?? "");
-            if (!res.error) setPick("");
-          }}
-        >
-          <label className="min-w-0 flex-1">
-            <span className="sr-only">Chọn học viên</span>
-            <select value={pick} onChange={(e) => setPick(e.target.value)} className={inputCls} disabled={roster.length >= cap}>
-              <option value="">{roster.length >= cap ? `Lớp đã đủ ${cap} học viên` : "Chọn học viên để thêm vào lớp"}</option>
-              {candidates.map((s) => {
-                const n = data.enrollments.filter((e) => e.studentId === s.id && e.status === "active").length;
-                return (
-                  <option key={s.id} value={s.id}>
-                    {s.fullName} ({s.code}){n ? `, đang học ${n} lớp` : ", chưa xếp lớp"}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <Button type="submit" disabled={!pick}>
-            Thêm
-          </Button>
-        </form>
-      )}
-      <div className="mt-2">
-        <ErrorText>{error}</ErrorText>
-      </div>
+      {editable && cls.status !== "finished" && <StudentPicker cls={cls} />}
     </section>
+  );
+}
+
+/** Gõ tên, mã, Gmail hoặc SĐT để tìm trong danh sách học viên có sẵn rồi thêm vào lớp */
+function StudentPicker({ cls }: { cls: ClassGroup }) {
+  const { data, enroll } = useStore();
+  const roster = rosterOf(data, cls.id);
+  const cap = CLASS_CAPACITY[cls.type];
+  const full = roster.length >= cap;
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const term = q.trim().toLowerCase();
+  const matches = data.students
+    .filter((s) => !roster.some((r) => r.id === s.id))
+    .filter(
+      (s) =>
+        !term ||
+        s.fullName.toLowerCase().includes(term) ||
+        s.code.toLowerCase().includes(term) ||
+        s.email.toLowerCase().includes(term) ||
+        (s.phone ?? "").includes(term),
+    )
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .slice(0, 8);
+
+  const add = (sid: string) => {
+    const st = data.students.find((s) => s.id === sid);
+    const res = enroll(sid, cls.id);
+    setMsg(res.error ? { ok: false, text: res.error } : { ok: true, text: `Đã thêm ${st?.fullName} vào lớp.` });
+    if (!res.error) {
+      setQ("");
+      setActive(0);
+    }
+  };
+
+  return (
+    <div className="mt-3">
+      <div className="relative">
+        <label htmlFor={`pick-${cls.id}`} className="sr-only">
+          Thêm học viên vào lớp
+        </label>
+        <input
+          id={`pick-${cls.id}`}
+          role="combobox"
+          aria-expanded={open && matches.length > 0}
+          aria-controls={`pick-list-${cls.id}`}
+          aria-autocomplete="list"
+          disabled={full}
+          value={q}
+          placeholder={full ? `Lớp đã đủ ${cap} học viên` : "Thêm học viên: gõ tên, mã YS-, Gmail hoặc SĐT"}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+            setActive(0);
+            setMsg(null);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (!matches.length) return;
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setActive((a) => (a + 1) % matches.length);
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActive((a) => (a - 1 + matches.length) % matches.length);
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              add(matches[active].id);
+            } else if (e.key === "Escape") setOpen(false);
+          }}
+          className={inputCls}
+        />
+        {open && !full && matches.length > 0 && (
+          <ul
+            id={`pick-list-${cls.id}`}
+            role="listbox"
+            className="mt-1 max-h-72 overflow-y-auto rounded-xl border border-rule bg-surface p-1 shadow-card"
+          >
+            {matches.map((s, i) => {
+              const n = data.enrollments.filter((e) => e.studentId === s.id && e.status === "active").length;
+              return (
+                <li
+                  key={s.id}
+                  role="option"
+                  aria-selected={i === active}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => add(s.id)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 ${i === active ? "bg-brand-soft" : ""}`}
+                >
+                  <Avatar name={s.fullName} size={26} tone="plain" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{s.fullName}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {s.code}, {s.email}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 text-xs ${n ? "text-muted" : "hl text-ink"}`}>{n ? `đang học ${n} lớp` : "chưa xếp lớp"}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {open && !full && term && matches.length === 0 && (
+          <div className="mt-1 rounded-xl border border-rule bg-surface px-3 py-2.5 text-sm text-muted">
+            Không có học viên khớp. Học viên mới do quản trị viên thêm ở tab Học viên.
+          </div>
+        )}
+      </div>
+      {msg && (
+        <p role="status" className={`mt-2 text-sm ${msg.ok ? "text-ok" : "text-danger"}`}>
+          {msg.text}
+        </p>
+      )}
+    </div>
   );
 }

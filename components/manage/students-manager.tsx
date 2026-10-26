@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { dateShort } from "@/lib/format";
-import { homeworkForStudent, rosterOf } from "@/lib/selectors";
+import { canManageRoster, homeworkForStudent, isAdmin, rosterOf } from "@/lib/selectors";
 import { useStore } from "@/lib/store";
 import { CLASS_CAPACITY, type ClassGroup, type Student } from "@/lib/types";
 import { IconChevron, IconPlus } from "../icons";
@@ -36,7 +36,8 @@ function stats(data: ReturnType<typeof useStore>["data"], studentId: string) {
 }
 
 export function StudentsManager() {
-  const { data } = useStore();
+  const { data, account } = useStore();
+  const admin = isAdmin(account);
   const [id, select] = useSelected();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -87,9 +88,11 @@ export function StudentsManager() {
             ))}
           </select>
         </label>
-        <Button className="ml-auto" onClick={() => select("new")}>
-          <IconPlus size={16} /> Thêm học viên
-        </Button>
+        {admin && (
+          <Button className="ml-auto" onClick={() => select("new")}>
+            <IconPlus size={16} /> Thêm học viên
+          </Button>
+        )}
       </div>
 
       {rows.length ? (
@@ -163,9 +166,10 @@ export function StudentsManager() {
 /* ───────────── panel học viên ───────────── */
 
 function StudentSheet({ id, onSelect }: { id: string | null; onSelect: (id: string | null) => void }) {
-  const { data } = useStore();
+  const { data, account } = useStore();
+  const admin = isAdmin(account);
   const student = id && id !== "new" ? data.students.find((s) => s.id === id) : undefined;
-  const open = id === "new" || !!student;
+  const open = (id === "new" && admin) || !!student;
   return (
     <Sheet
       open={open}
@@ -177,13 +181,21 @@ function StudentSheet({ id, onSelect }: { id: string | null; onSelect: (id: stri
           : "Mã học viên được cấp tự động. Gmail dùng để đăng nhập bằng Google."
       }
     >
-      {open && <StudentForm key={id} student={student} onCreated={(nid) => onSelect(nid)} />}
+      {open && <StudentForm key={id} student={student} readOnly={!admin} onCreated={(nid) => onSelect(nid)} />}
       {student && <Enrollments student={student} />}
     </Sheet>
   );
 }
 
-function StudentForm({ student, onCreated }: { student?: Student; onCreated: (id: string) => void }) {
+function StudentForm({
+  student,
+  readOnly,
+  onCreated,
+}: {
+  student?: Student;
+  readOnly?: boolean;
+  onCreated: (id: string) => void;
+}) {
   const { createStudent, updateStudent } = useStore();
   const [fullName, setFullName] = useState(student?.fullName ?? "");
   const [email, setEmail] = useState(student?.email ?? "");
@@ -205,6 +217,7 @@ function StudentForm({ student, onCreated }: { student?: Student; onCreated: (id
         if (!student && res.id) onCreated(res.id);
       }}
     >
+      <fieldset disabled={readOnly} className="space-y-4">
       <Field label="Họ và tên">
         <input required value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} placeholder="Nguyễn Văn A" />
       </Field>
@@ -216,9 +229,14 @@ function StudentForm({ student, onCreated }: { student?: Student; onCreated: (id
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="09…" />
         </Field>
       </div>
+      </fieldset>
       <ErrorText>{error}</ErrorText>
       <div className="flex items-center gap-3">
-        <Button type="submit">{student ? "Lưu thay đổi" : "Thêm học viên"}</Button>
+        {readOnly ? (
+          <p className="text-xs text-muted">Thông tin học viên do quản trị viên quản lý.</p>
+        ) : (
+          <Button type="submit">{student ? "Lưu thay đổi" : "Thêm học viên"}</Button>
+        )}
         {saved && student && <span className="text-sm text-ok">Đã lưu</span>}
       </div>
     </form>
@@ -226,12 +244,15 @@ function StudentForm({ student, onCreated }: { student?: Student; onCreated: (id
 }
 
 function Enrollments({ student }: { student: Student }) {
-  const { data, enroll, unenroll } = useStore();
+  const { data, account, enroll, unenroll } = useStore();
   const { current, past } = classesOf(data, student.id);
   const st = stats(data, student.id);
   const [pick, setPick] = useState("");
   const [error, setError] = useState("");
-  const options = data.classes.filter((c) => c.status !== "finished" && !current.some((x) => x.id === c.id));
+  // Giáo viên chỉ xếp được vào lớp mình phụ trách
+  const options = data.classes.filter(
+    (c) => c.status !== "finished" && !current.some((x) => x.id === c.id) && canManageRoster(data, account, c.id),
+  );
 
   return (
     <>
@@ -242,7 +263,11 @@ function Enrollments({ student }: { student: Student }) {
         {current.length ? (
           <ul className="space-y-2">
             {current.map((c) => (
-              <ClassRow key={c.id} c={c} action={() => unenroll(student.id, c.id)} />
+              <ClassRow
+                key={c.id}
+                c={c}
+                action={canManageRoster(data, account, c.id) ? () => unenroll(student.id, c.id) : undefined}
+              />
             ))}
           </ul>
         ) : (
@@ -262,7 +287,7 @@ function Enrollments({ student }: { student: Student }) {
           <label className="min-w-0 flex-1">
             <span className="sr-only">Chọn lớp</span>
             <select value={pick} onChange={(e) => setPick(e.target.value)} className={inputCls}>
-              <option value="">Xếp vào lớp…</option>
+              <option value="">{options.length ? "Xếp vào lớp…" : "Không còn lớp nào bạn có thể xếp"}</option>
               {options.map((c) => {
                 const left = CLASS_CAPACITY[c.type] - rosterOf(data, c.id).length;
                 return (
@@ -325,7 +350,7 @@ function ClassRow({ c, action }: { c: ClassGroup; action?: () => void }) {
     <li className="flex items-center gap-3 rounded-xl border border-rule bg-surface px-3 py-2.5">
       <ClassTypeBadge type={c.type} />
       <div className="min-w-0 flex-1">
-        <Link href={`/admin/manage/classes?id=${c.id}`} className="block truncate text-sm font-medium hover:text-brand">
+        <Link href={`/manage/classes?id=${c.id}`} className="block truncate text-sm font-medium hover:text-brand">
           {c.name}
         </Link>
         <div className="truncate text-xs text-muted">

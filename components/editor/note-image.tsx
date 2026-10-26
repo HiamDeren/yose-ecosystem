@@ -4,6 +4,7 @@ import Image from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { useEffect, useState } from "react";
 import { getFile } from "@/lib/file-store";
+import { openImageViewer } from "./image-viewer";
 
 /**
  * Ảnh trong note. Ảnh tải lên được lưu như một file đính kèm (`fileId`), không nhét base64
@@ -58,7 +59,17 @@ function ImageView({ node, selected, editor }: ReactNodeViewProps) {
     >
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element -- ảnh do người dùng tải lên (blob/S3)
-        <img src={url} alt={alt ?? ""} draggable={false} />
+        <img
+          src={url}
+          alt={alt ?? ""}
+          draggable={false}
+          title="Nhấp đúp để xem lớn"
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openImageViewer(e.currentTarget);
+          }}
+        />
       ) : (
         <span className="note-image-placeholder">{missing ? "Không tìm thấy ảnh trên trình duyệt này" : "Đang tải ảnh…"}</span>
       )}

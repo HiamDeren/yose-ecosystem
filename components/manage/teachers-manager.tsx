@@ -111,8 +111,102 @@ export function TeachersManager() {
         <Empty>Không có giáo viên nào khớp.</Empty>
       )}
 
+      <AdminAccounts />
+
       <TeacherSheet id={id} onSelect={select} />
     </>
+  );
+}
+
+/** Ai được xem tab Giáo viên (giờ dạy, lương) và chỉnh lớp/học viên: giữ 1–2 tài khoản */
+function AdminAccounts() {
+  const { data, account, addAdmin, removeAdmin } = useStore();
+  const admins = data.accounts.filter((a) => a.role === "admin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [confirm, setConfirm] = useState<string | null>(null);
+
+  return (
+    <section className="mt-10 max-w-3xl">
+      <h2 className="text-lg font-semibold tracking-tight">
+        Tài khoản quản trị <span className="font-normal text-muted">{admins.length}</span>
+      </h2>
+      <p className="mt-1 text-sm text-muted">
+        Chỉ các tài khoản này thấy danh sách giáo viên, giờ dạy, lương và được tạo, sửa lớp, học viên. Nên giữ 1–2 tài khoản.
+      </p>
+      <ul className="mt-4 divide-y divide-rule overflow-hidden rounded-xl border border-rule bg-surface">
+        {admins.map((a) => (
+          <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+            <Avatar name={a.name} size={30} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">
+                {a.name}
+                {a.id === account?.id && <span className="ml-2 text-xs font-normal text-muted">(bạn)</span>}
+              </div>
+              <div className="truncate text-xs text-muted">{a.email}</div>
+            </div>
+            {a.id !== account?.id &&
+              (confirm === a.id ? (
+                <span className="flex items-center gap-1 text-xs">
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-danger hover:bg-danger-soft"
+                    onClick={() => {
+                      const res = removeAdmin(a.id);
+                      setError(res.error ?? "");
+                      setConfirm(null);
+                    }}
+                  >
+                    Thu quyền
+                  </button>
+                  <button type="button" className="rounded-md px-2 py-1 text-muted hover:bg-surface-2" onClick={() => setConfirm(null)}>
+                    Hủy
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirm(a.id)}
+                  className="rounded-md px-2 py-1 text-xs text-muted hover:bg-danger-soft hover:text-danger"
+                >
+                  Thu quyền
+                </button>
+              ))}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.3fr_auto]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const res = addAdmin(name, email);
+          setError(res.error ?? "");
+          if (!res.error) {
+            setName("");
+            setEmail("");
+          }
+        }}
+      >
+        <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên người quản trị" aria-label="Tên" className={inputCls} />
+        <input
+          required
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email đăng nhập Google"
+          aria-label="Email"
+          className={inputCls}
+        />
+        <Button type="submit">Cấp quyền quản trị</Button>
+      </form>
+      {admins.length >= 2 && (
+        <p className="mt-2 text-xs text-muted">Đã có {admins.length} tài khoản quản trị. Chỉ thêm khi thật cần.</p>
+      )}
+      <div className="mt-2">
+        <ErrorText>{error}</ErrorText>
+      </div>
+    </section>
   );
 }
 
@@ -140,7 +234,7 @@ function TeacherSheet({ id, onSelect }: { id: string | null; onSelect: (id: stri
                 <li key={c.id} className="flex items-center gap-3 rounded-xl border border-rule bg-surface px-3 py-2.5">
                   <ClassTypeBadge type={c.type} />
                   <div className="min-w-0 flex-1">
-                    <Link href={`/admin/manage/classes?id=${c.id}`} className="block truncate text-sm font-medium hover:text-brand">
+                    <Link href={`/manage/classes?id=${c.id}`} className="block truncate text-sm font-medium hover:text-brand">
                       {c.name}
                     </Link>
                     <div className="text-xs text-muted">

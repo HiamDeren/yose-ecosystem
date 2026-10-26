@@ -109,3 +109,15 @@ export function teachingHours(d: YoseData, teacherId: string, from: Date, to: Da
   const minutes = done.reduce((sum, s) => sum + s.durationMin, 0);
   return { sessions: done.length, hours: minutes / 60 };
 }
+
+/* ───────────── phân quyền ───────────── */
+
+export const isAdmin = (acc?: Account | null) => acc?.role === "admin";
+export const isStaff = (acc?: Account | null) => acc?.role === "admin" || acc?.role === "teacher";
+
+/** Ai được thêm/rút học viên của lớp: admin, hoặc giáo viên phụ trách lớp đó */
+export function canManageRoster(d: YoseData, acc: Account | null | undefined, classId: string) {
+  if (!acc) return false;
+  if (acc.role === "admin") return true;
+  return acc.role === "teacher" && d.classes.some((c) => c.id === classId && c.teacherId === acc.profileId);
+}

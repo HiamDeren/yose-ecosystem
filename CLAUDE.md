@@ -16,7 +16,7 @@ Nền tảng cho trung tâm tiếng Anh Yose, thay cho việc ghi note và homew
   - **tài liệu buổi học** (file đính kèm: PDF, mp3, slide…);
   - điểm danh + nhận xét riêng từng học viên;
   - homework: file đề kèm theo, học viên nộp file/ảnh/**ghi âm ngay trên trình duyệt**/chữ/link, GV chấm điểm.
-- Vai trò: học viên, giáo viên, admin. Admin có tab **Quản lý** chia theo đối tượng **Lớp – Học viên – Giáo viên**: lớp nhóm theo trạng thái (Đang chạy / Sắp khai giảng / Đã kết thúc) kèm tổng quan theo trình độ; học viên thấy đang học lớp nào, xếp lớp có kiểm tra sĩ số; giáo viên kèm giờ dạy và lương tạm tính.
+- Vai trò: **Admin** (chỉ 1–2 tài khoản, cấp/thu ở Quản lý > Giáo viên > Tài khoản quản trị), **Giáo viên**, **Học viên**. Bảng quyền đầy đủ ở `docs/ARCHITECTURE.md` mục 4. Giáo viên tự thêm/rút học viên của lớp mình (chọn từ danh sách có sẵn, không tạo học viên mới); danh sách giáo viên, giờ dạy, lương chỉ admin thấy. Admin có tab **Quản lý** chia theo đối tượng **Lớp – Học viên – Giáo viên**: lớp nhóm theo trạng thái (Đang chạy / Sắp khai giảng / Đã kết thúc) kèm tổng quan theo trình độ; học viên thấy đang học lớp nào, xếp lớp có kiểm tra sĩ số; giáo viên kèm giờ dạy và lương tạm tính.
 - **Giai đoạn sau:** gộp quản lý giáo viên, giờ dạy, lương vào cùng app. Vì vậy `ClassSession` đã lưu `teacherId` (người thực dạy, kể cả dạy thay) và `durationMin`; schema có sẵn bảng `Payroll`.
 
 Repo `HiamDeren/yose-classroom` là repo khác (nơi chủ dự án lưu tài liệu theo lớp của mình), **không đụng vào**.
@@ -43,9 +43,10 @@ app/(app)/classes/[classId]/                 Dòng thời gian buổi học (com
 app/(app)/classes/[classId]/sessions/[sessionId]/
                                              Buổi học, tab qua ?tab=note|homework|attendance (components/session-view.tsx)
 app/(app)/homework/                          Học viên: mọi bài tập; GV: hàng chờ chấm
-app/(app)/admin/manage/{classes,students,teachers}/
-                                             Admin > Quản lý, 3 sub-tab theo đối tượng Lớp / Học viên / Giáo viên
-                                             (components/manage/*). Panel chi tiết mở bằng ?id=<id> hoặc ?id=new
+app/(app)/manage/{classes,students,teachers}/
+                                             Quản lý, sub-tab Lớp / Học viên / Giáo viên (components/manage/*).
+                                             Panel chi tiết mở bằng ?id=<id> hoặc ?id=new. Giáo viên vào được
+                                             Lớp (lớp mình dạy) + Học viên; tab Giáo viên chỉ admin
 lib/types.ts                                 Kiểu domain, khớp 1-1 với prisma/schema.prisma
 lib/store.tsx                                StoreProvider + useStore(): data, account, now, mọi action ghi
 lib/selectors.ts                             Truy vấn thuần: lớp theo account, quyền, trạng thái bài, giờ dạy
@@ -77,6 +78,9 @@ components/homework-panel.tsx                Giao bài (kèm file), nộp bài (
 
 ## Thiết kế
 
+- Bố cục: shell cao đúng màn hình (`h-dvh overflow-hidden`), chỉ `<main id="app-scroll">` cuộn; đổi trang thì AppShell tự cuộn main về đầu. Phần tử sticky (thanh công cụ editor, cột phải trang buổi học, danh sách học viên ở trang lớp) dùng `top-0` theo khung cuộn này.
+- Thanh cuộn mảnh theo theme (`--scroll-thumb`); dải tab cuộn ngang dùng class `no-scrollbar` và gạch chân bằng `shadow-[inset_0_-1px_0_var(--rule)]` (không dùng `-mb-px`, vì sẽ sinh thanh cuộn dọc).
+- Ảnh trong note: nhấp đúp mở trình xem (`components/editor/image-viewer.tsx`, phát sự kiện `yose:view-image`). Trong ô bảng, ảnh xếp cạnh nhau: CSS đặt trên lớp bọc `.node-image` của ReactNodeViewRenderer, không phải `.note-image`.
 - Sidebar desktop thu thành thanh icon 4rem, rê chuột/focus thì mở 15.5rem đè lên nội dung; nút ghim (lưu `yose-sidebar-pinned`) thì luôn mở và đẩy nội dung. Biến CSS `--rail` quyết định padding trái của nội dung. Nội dung trang full width, không đặt max-width; trang buổi học chia 2 cột từ `xl` (note | từ vựng + tài liệu).
 - Chủ đề "sổ tay lớp học": mực xanh trên giấy lạnh. Màu là CSS token trong `app/globals.css` (light + dark qua `prefers-color-scheme` và `data-theme`), dùng qua class Tailwind như `bg-surface`, `text-ink`, `text-muted`, `border-rule`, `bg-brand`.
 - Màu theo loại lớp: `t11` (1-1, tím), `t12` (1-2, xanh ngọc), `tg` (nhóm, hồng). Dùng `ClassTypeBadge` và `TYPE_BAR` trong `components/ui.tsx`.

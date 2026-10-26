@@ -229,7 +229,7 @@ function Workspace({ note, materials }: { note: SessionNote; materials: ReactNod
               {vocab.map((v, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-[1fr_5.5rem_auto] gap-2 rounded-lg border border-rule bg-surface p-2"
+                  className="grid grid-cols-[1fr_9.5rem_auto] gap-2 rounded-lg border border-rule bg-surface p-2"
                 >
                   <input
                     aria-label="Từ"
@@ -238,13 +238,23 @@ function Workspace({ note, materials }: { note: SessionNote; materials: ReactNod
                     onChange={(e) => update(i, { word: e.target.value })}
                     className={inputCls}
                   />
-                  <input
+                  <select
                     aria-label="Loại từ"
-                    placeholder="n, v, adj"
                     value={v.partOfSpeech}
                     onChange={(e) => update(i, { partOfSpeech: e.target.value })}
-                    className={inputCls}
-                  />
+                    className={`${inputCls} px-2`}
+                  >
+                    <option value="">Loại từ</option>
+                    {/* giữ giá trị cũ nhập tay nếu không nằm trong danh sách */}
+                    {v.partOfSpeech && !PARTS_OF_SPEECH.some((p) => p.value === v.partOfSpeech) && (
+                      <option value={v.partOfSpeech}>{v.partOfSpeech}</option>
+                    )}
+                    {PARTS_OF_SPEECH.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.value} ({p.label})
+                      </option>
+                    ))}
+                  </select>
                   <input
                     aria-label="Nghĩa tiếng Việt"
                     placeholder="Nghĩa"
@@ -294,10 +304,28 @@ function Columns({ main, side }: { main: ReactNode; side: ReactNode }) {
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
       <div className="min-w-0">{main}</div>
-      <div className="min-w-0 space-y-8">{side}</div>
+      <div className="min-w-0 space-y-8 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-3rem)] xl:self-start xl:overflow-y-auto xl:pb-4 xl:pr-1">
+        {side}
+      </div>
     </div>
   );
 }
+
+/** Loại từ: giá trị lưu là ký hiệu ngắn, hiện kèm tên tiếng Việt */
+const PARTS_OF_SPEECH = [
+  { value: "n", label: "danh từ" },
+  { value: "v", label: "động từ" },
+  { value: "adj", label: "tính từ" },
+  { value: "adv", label: "trạng từ" },
+  { value: "prep", label: "giới từ" },
+  { value: "conj", label: "liên từ" },
+  { value: "pron", label: "đại từ" },
+  { value: "det", label: "từ hạn định" },
+  { value: "phr v", label: "cụm động từ" },
+  { value: "phrase", label: "cụm từ" },
+  { value: "idiom", label: "thành ngữ" },
+  { value: "collocation", label: "kết hợp từ" },
+];
 
 const blankVocab = (): VocabItem => ({ word: "", partOfSpeech: "", meaningVi: "", definitionEn: "" });
 
