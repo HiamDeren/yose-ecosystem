@@ -32,7 +32,7 @@ import type {
  * UI giữ nguyên.
  */
 
-const DATA_KEY = "yose-center-demo-v3";
+const DATA_KEY = "yose-center-demo-v4";
 const ACCOUNT_KEY = "yose-center-account";
 
 interface StoreValue {

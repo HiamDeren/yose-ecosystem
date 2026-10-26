@@ -160,6 +160,7 @@ enum AttachmentOwner {
   SESSION    // tài liệu buổi học
   HOMEWORK   // file GV gửi kèm bài tập
   SUBMISSION // file học viên nộp
+  NOTE_IMAGE // ảnh chèn trong nội dung note (ownerId = sessionId)
 }
 
 /// File đính kèm, thay cho folder Google Drive. Nội dung nằm trên S3,

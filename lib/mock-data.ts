@@ -432,6 +432,9 @@ function lessonHtml(points: string[]) {
     "<h2>Nội dung chính</h2><ul>" +
     points.map((p) => `<li><p>${inlineHtml(p)}</p></li>`).join("") +
     "</ul><h2>Ghi trên lớp</h2><ul><li><p>Cả lớp làm bài mẫu, chữa trực tiếp trên bảng. <mark>Câu sai nhiều nhất: câu 3 và câu 7.</mark></p></li></ul>" +
+    "<table><tbody><tr><th><p>Lỗi hay gặp</p></th><th><p>Sửa lại</p></th><th><p>Ghi chú</p></th></tr>" +
+    "<tr><td><p>He <span style=\"color: var(--tx-red)\">go</span> to school every day.</p></td><td><p>He <strong>goes</strong> to school every day.</p></td><td><p>Ngôi thứ 3 số ít thêm -es</p></td></tr>" +
+    "<tr><td><p>I am <span style=\"color: var(--tx-red)\">agree</span> with you.</p></td><td><p>I <strong>agree</strong> with you.</p></td><td><p><em>agree</em> là động từ, không dùng với <em>be</em></p></td></tr></tbody></table>" +
     "<h2>Lưu ý cho buổi sau</h2><ul><li><p>Ôn lại từ vựng trong bảng bên dưới trước khi vào lớp.</p></li></ul>"
   );
 }
@@ -441,7 +444,8 @@ function draftHtml(points: string[]) {
     "<h2>Kế hoạch buổi học</h2><ol><li><p>Warm-up 10 phút: hỏi lại từ vựng buổi trước.</p></li><li><p>Bài chính 60 phút.</p></li><li><p>Luyện tập theo cặp và chữa bài.</p></li></ol>" +
     "<h2>Nội dung chính</h2><ul>" +
     points.map((p) => `<li><p>${inlineHtml(p)}</p></li>`).join("") +
-    "</ul><h2>Ghi trên lớp</h2><p></p>"
+    "</ul><h2>Chuẩn bị trước buổi</h2><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><p>In đề và tải file nghe lên mục tài liệu</p></li><li data-type=\"taskItem\" data-checked=\"false\"><p>Chuẩn bị 5 câu warm-up</p></li></ul>" +
+    "<h2>Ghi trên lớp</h2><p></p>"
   );
 }
 

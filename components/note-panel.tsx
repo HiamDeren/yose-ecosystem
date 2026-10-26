@@ -175,7 +175,7 @@ function NoteStatus({ note, live }: { note?: SessionNote; live: boolean }) {
 
 /** Soạn + tự lưu, giống cảm giác Google Docs */
 function Workspace({ note, materials }: { note: SessionNote; materials: ReactNode }) {
-  const { saveNote } = useStore();
+  const { saveNote, addAttachment } = useStore();
   const [html, setHtml] = useState(note.html);
   const [vocab, setVocab] = useState<VocabItem[]>(note.vocab.length ? note.vocab : [blankVocab()]);
   const [saved, setSaved] = useState<"saved" | "saving">("saved");
@@ -208,7 +208,7 @@ function Workspace({ note, materials }: { note: SessionNote; materials: ReactNod
       main={
         <div>
           <div className="mb-2 flex items-center justify-between text-xs text-muted">
-            <span>Bút dạ quang để đánh dấu chỗ học viên hay sai. Mọi thay đổi tự lưu.</span>
+            <span>Soạn như Google Docs: bảng, ảnh, màu, checklist. Mọi thay đổi tự lưu.</span>
             <span aria-live="polite">{saved === "saving" ? "Đang lưu…" : "Đã lưu"}</span>
           </div>
           <NoteEditor
@@ -217,6 +217,7 @@ function Workspace({ note, materials }: { note: SessionNote; materials: ReactNod
               setSaved("saving");
               setHtml(h);
             }}
+            onUploadImage={async (blob, name) => (await addAttachment("note", note.sessionId, blob, name)).id}
           />
         </div>
       }

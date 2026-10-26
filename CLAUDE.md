@@ -23,7 +23,7 @@ Repo `HiamDeren/yose-classroom` là repo khác (nơi chủ dự án lưu tài li
 
 ## Trạng thái hiện tại: bản demo
 
-- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage** (key `yose-center-demo-v3`; đổi shape dữ liệu thì tăng version). Nội dung file đính kèm lưu trong **IndexedDB** (`lib/file-store.ts`); file mẫu có `sample: true`, không có nội dung. Chưa có database, chưa có S3, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
+- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage** (key `yose-center-demo-v4`; đổi shape dữ liệu thì tăng version). Nội dung file đính kèm lưu trong **IndexedDB** (`lib/file-store.ts`); file mẫu có `sample: true`, không có nội dung. Chưa có database, chưa có S3, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
 - `npm run dev` là chạy được, không cần biến môi trường.
 - Chi tiết idea, phân quyền, stack, lộ trình: `docs/ARCHITECTURE.md`. Schema đề xuất: `prisma/schema.prisma` (Prisma **chưa cài**).
 
@@ -53,7 +53,9 @@ lib/file-store.ts                            Kho file demo (IndexedDB); producti
 lib/levels.ts                                Danh mục trình độ (Intern → IELTS 6.0+) kèm mô tả
 lib/schedule.ts                              Sinh buổi học từ lịch tuần (dùng khi tạo lớp / đổi lịch)
 lib/mock-data.ts, lib/lessons.ts             Sinh dữ liệu mẫu tương đối theo ngày hiện tại
-components/rich-editor.tsx                   TipTap: NoteEditor (soạn) và NoteContent (chỉ đọc)
+components/rich-editor.tsx                   TipTap kiểu Google Docs: NoteEditor (thanh công cụ: kiểu đoạn, cỡ chữ, màu, link,
+                                             ảnh, bảng, căn lề, checklist…) và NoteContent (chỉ đọc)
+components/editor/note-image.tsx             Node ảnh: lưu data-file-id (Attachment ownerType "note"), thu nhỏ ảnh trước khi lưu
 components/note-panel.tsx                    Tab Note: trạng thái nháp/công bố, workspace tự lưu, tài liệu buổi học
 components/attachments.tsx                   AttachmentList, FileDrop, UploadArea, AudioRecorder, PendingList
 components/homework-panel.tsx                Giao bài (kèm file), nộp bài (file/ghi âm/chữ/link), chấm bài
@@ -67,6 +69,8 @@ components/homework-panel.tsx                Giao bài (kèm file), nộp bài (
 - `STATIC_EXPORT=1 npm run build` xuất bản tĩnh vào `out/`. Chế độ này tự tắt `cacheComponents` vì static export không hỗ trợ PPR.
 - Trước khi dùng API Next.js nào lạ, đọc docs trong `node_modules/next/dist/docs/` (xem AGENTS.md). Ví dụ: `middleware` đã đổi tên thành `proxy`.
 - `useEditor` của TipTap luôn đặt `immediatelyRender: false` (tránh lỗi hydration trong Next).
+- Màu trong note (màu chữ, màu nền) lưu dạng `var(--tx-*)` / `var(--hl-*)`, định nghĩa ở `app/globals.css` cho cả sáng và tối. Không lưu mã hex cứng vào nội dung note.
+- Ảnh trong note: node `image` có `fileId` và không có `src`; `parseHTML` phải nhận `img[data-file-id]`, nếu không ảnh sẽ mất khi mở lại note.
 - Viewer artifact/iframe chặn `confirm()`; xác nhận xóa làm bằng nút trong giao diện (đã làm vậy cho file và homework).
 - Kiểm tra trước khi commit: `npx eslint .` và `npm run build` phải sạch.
 - **Deploy:** Vercel tự deploy nhánh `main`. Gói Hobby chặn deploy nếu tác giả commit không phải chủ project, nên commit phải đứng tên `HiamDeren <93184692+HiamDeren@users.noreply.github.com>` (đặt `git config user.name/user.email` trong repo trước khi commit).

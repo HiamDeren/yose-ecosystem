@@ -100,7 +100,8 @@ export interface SessionNote {
   publishedAt?: string;
 }
 
-export type AttachmentOwner = "session" | "homework" | "submission";
+/** "note": ảnh chèn trong nội dung note (ownerId = sessionId), không hiện ở danh sách tài liệu */
+export type AttachmentOwner = "session" | "homework" | "submission" | "note";
 
 /**
  * File đính kèm, thay cho folder Google Drive.

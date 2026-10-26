@@ -107,7 +107,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 ### Kỹ thuật
 
-- **Trình soạn:** [TipTap](https://tiptap.dev) (nền ProseMirror): tiêu đề, đậm/nghiêng/gạch chân, bút dạ quang, danh sách, trích dẫn, hoàn tác. Production lưu `editor.getJSON()` vào cột `jsonb`, mỗi lần lưu tạo `NoteRevision` (lịch sử phiên bản như Docs). Muốn nhiều người cùng sửa realtime thì thêm Hocuspocus/Yjs sau, không cần đổi schema.
+- **Trình soạn:** [TipTap](https://tiptap.dev) (nền ProseMirror), các chức năng chính của Google Docs:
+  - kiểu đoạn (Văn bản, Tiêu đề 1–3), cỡ chữ, đậm/nghiêng/gạch chân/gạch ngang, chỉ số trên/dưới, xóa định dạng;
+  - màu chữ và màu nền (bảng màu dùng token theo theme nên đọc được ở cả giao diện sáng và tối);
+  - căn trái/giữa/phải/đều, danh sách chấm, danh sách số, checklist, trích dẫn, đường kẻ ngang, link;
+  - **bảng**: chèn bằng lưới chọn kích thước, thêm/xóa hàng cột, gộp/tách ô, bật tắt hàng tiêu đề, kéo mép cột để đổi độ rộng;
+  - **ảnh**: tải lên, dán (Ctrl+V) hoặc kéo thả thẳng vào note, hoặc chèn từ link; chọn cỡ Nhỏ/Vừa/Toàn khổ và căn lề. Ảnh lớn được thu nhỏ trên trình duyệt (cạnh dài 1600px, WebP) trước khi lưu. Ảnh lưu như một `Attachment` loại `NOTE_IMAGE`, trong note chỉ giữ `data-file-id`, không nhét base64;
+  - hoàn tác/làm lại, đếm số từ, tự lưu. Production lưu `editor.getJSON()` vào cột `jsonb`, mỗi lần lưu tạo `NoteRevision` (lịch sử phiên bản như Docs). Muốn nhiều người cùng sửa realtime thì thêm Hocuspocus/Yjs sau, không cần đổi schema.
 - **Lưu file:** S3, key dạng `classes/{classId}/sessions/{sessionId}/{uuid}-{tên file}`. Trình duyệt xin **presigned PUT URL** từ server rồi upload thẳng lên S3 (server không phải chuyển tiếp file). Xem/tải bằng **presigned GET URL** hết hạn sau vài phút, chỉ cấp khi người xin có quyền với lớp. Có thể đặt CloudFront phía trước.
 - **Giới hạn:** 25 MB mỗi file (video dài nên để YouTube không công khai và dán link), chỉ nhận PDF, Office, ảnh, âm thanh, MP4. Lifecycle S3 chuyển file của lớp đã kết thúc sang Glacier sau 12 tháng.
 - **Ghi âm bài nói:** dùng MediaRecorder ngay trên trình duyệt, nộp thành file `.webm`, không cần app khác.
