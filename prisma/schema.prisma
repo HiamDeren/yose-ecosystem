@@ -1,0 +1,207 @@
+// Yose Center — schema đề xuất cho PostgreSQL trên AWS RDS / Aurora Serverless v2.
+// Demo hiện chạy bằng mock data (lib/mock-data.ts) với cùng cấu trúc này.
+// Cài đặt khi bắt đầu nối DB thật:  npm i -D prisma && npm i @prisma/client
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum ClassType {
+  ONE_ON_ONE // 1-1
+  ONE_ON_TWO // 1-2
+  GROUP      // tối đa 12 người
+}
+
+enum SessionStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+enum Attendance {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REVIEWED
+}
+
+// ───────── Danh tính & đăng nhập Google ─────────
+
+/// Account = 1 Gmail. Chỉ Gmail đã có trong bảng này mới đăng nhập được
+/// (Gmail lấy từ form đăng ký học viên / hồ sơ giáo viên).
+model Account {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  image     String?
+  role      Role
+  student   Student?
+  teacher   Teacher?
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+}
+
+model Student {
+  id          String       @id @default(cuid())
+  code        String       @unique // Mã học viên, vd YS-24017
+  fullName    String
+  phone       String?
+  accountId   String       @unique
+  account     Account      @relation(fields: [accountId], references: [id])
+  enrollments Enrollment[]
+  remarks     StudentRemark[]
+  submissions Submission[]
+  joinedAt    DateTime     @default(now())
+}
+
+model Teacher {
+  id         String         @id @default(cuid())
+  fullName   String
+  accountId  String         @unique
+  account    Account        @relation(fields: [accountId], references: [id])
+  hourlyRate Int?           // VND/giờ — module lương
+  classes    ClassGroup[]
+  sessions   ClassSession[]
+  payrolls   Payroll[]
+}
+
+// ───────── Lớp học ─────────
+
+model ClassGroup {
+  id            String         @id @default(cuid())
+  code          String         @unique // vd G-INT-RL-02
+  name          String         // vd "Intern Read-Lis"
+  type          ClassType
+  level         String
+  teacherId     String
+  teacher       Teacher        @relation(fields: [teacherId], references: [id])
+  /// [{ day: 1, start: "19:30", durationMin: 120 }, ...]
+  schedule      Json
+  totalSessions Int
+  startDate     DateTime
+  active        Boolean        @default(true)
+  enrollments   Enrollment[]
+  sessions      ClassSession[]
+}
+
+model Enrollment {
+  studentId String
+  classId   String
+  student   Student    @relation(fields: [studentId], references: [id])
+  class     ClassGroup @relation(fields: [classId], references: [id])
+  joinedAt  DateTime   @default(now())
+  leftAt    DateTime?
+
+  @@id([studentId, classId])
+  @@index([classId])
+}
+
+model ClassSession {
+  id          String          @id @default(cuid())
+  classId     String
+  class       ClassGroup      @relation(fields: [classId], references: [id])
+  index       Int             // Buổi số
+  startsAt    DateTime
+  durationMin Int             // dùng để tính giờ dạy
+  topic       String
+  status      SessionStatus   @default(SCHEDULED)
+  teacherId   String          // GV thực dạy (dạy thay vẫn tính đúng người)
+  teacher     Teacher         @relation(fields: [teacherId], references: [id])
+  note        SessionNote?
+  remarks     StudentRemark[]
+  homework    Homework[]
+
+  @@unique([classId, index])
+  @@index([teacherId, startsAt])
+}
+
+/// Note chung trên lớp (thay cho Google Docs hiện tại)
+model SessionNote {
+  sessionId String       @id
+  session   ClassSession @relation(fields: [sessionId], references: [id])
+  content   String       // markdown
+  vocab     Json         // [{ word, partOfSpeech, meaningVi, definitionEn, example }]
+  updatedAt DateTime     @updatedAt
+  authorId  String
+}
+
+/// Điểm danh + nhận xét riêng từng học viên mỗi buổi
+model StudentRemark {
+  sessionId  String
+  studentId  String
+  session    ClassSession @relation(fields: [sessionId], references: [id])
+  student    Student      @relation(fields: [studentId], references: [id])
+  attendance Attendance   @default(PRESENT)
+  comment    String?
+
+  @@id([sessionId, studentId])
+}
+
+// ───────── Homework ─────────
+
+model Homework {
+  id           String       @id @default(cuid())
+  sessionId    String
+  session      ClassSession @relation(fields: [sessionId], references: [id])
+  title        String
+  instructions String
+  dueAt        DateTime
+  /// rỗng = cả lớp; có id = giao riêng
+  assigneeIds  String[]
+  attachments  String[]     // S3 keys
+  submissions  Submission[]
+  createdAt    DateTime     @default(now())
+}
+
+model Submission {
+  id          String           @id @default(cuid())
+  homeworkId  String
+  studentId   String
+  homework    Homework         @relation(fields: [homeworkId], references: [id])
+  student     Student          @relation(fields: [studentId], references: [id])
+  content     String
+  link        String?
+  fileKeys    String[]         // S3 keys (upload qua presigned URL)
+  status      SubmissionStatus @default(SUBMITTED)
+  score       Decimal?         @db.Decimal(4, 1)
+  feedback    String?
+  submittedAt DateTime         @default(now())
+  reviewedAt  DateTime?
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+}
+
+// ───────── Giai đoạn 2: quản lý giáo viên & lương ─────────
+
+model Payroll {
+  id          String   @id @default(cuid())
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  month       DateTime // ngày 1 của tháng
+  hours       Decimal  @db.Decimal(6, 2) // tổng từ ClassSession DONE
+  rate        Int
+  bonus       Int      @default(0)
+  deduction   Int      @default(0)
+  total       Int
+  status      String   @default("draft") // draft | approved | paid
+  createdAt   DateTime @default(now())
+
+  @@unique([teacherId, month])
+}

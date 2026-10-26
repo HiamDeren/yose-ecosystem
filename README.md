@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Yose Center
 
-## Getting Started
+Nền tảng quản lý lớp học của Yose: **note trên lớp** và **homework** chia theo từng buổi, theo từng lớp, theo từng học viên. Giai đoạn sau gộp thêm quản lý giáo viên, giờ dạy và lương.
 
-First, run the development server:
+> Repo này là **bản demo**: giao diện đầy đủ cho 3 vai trò, chạy bằng dữ liệu mẫu lưu trong trình duyệt (localStorage). Chưa nối database và Google OAuth thật. Kiến trúc và schema cho bản thật nằm ở [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) và [`prisma/schema.prisma`](prisma/schema.prisma).
+
+## Chạy thử
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# mở http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Bấm **Tiếp tục với Google**, chọn một tài khoản mẫu:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Tài khoản | Thấy gì |
+|---|---|
+| Nguyễn Minh Anh (YS-24017) | Học 1 lớp **1-1** (Speaking IELTS) và 1 lớp **nhóm 12** (Intern Read-Lis). Vào lớp → buổi → note + homework, nộp bài |
+| Trần Gia Huy | Lớp **1-2** (Communication) và Intern Read-Lis |
+| Trần Mỹ Linh (giáo viên) | Lịch dạy, viết/sửa note, giao homework, chấm bài, điểm danh và nhận xét riêng |
+| Quản trị Yose | Tổng quan, danh sách học viên theo mã, lớp theo loại, giờ dạy và lương tạm tính của giáo viên |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Mọi thay đổi (nộp bài, chấm điểm, sửa note) được lưu trong trình duyệt. **Đặt lại dữ liệu demo** ở góc dưới sidebar để tạo lại dữ liệu mẫu.
 
-## Learn More
+## Cấu trúc
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/
+  login/                         Đăng nhập (demo: chọn tài khoản mẫu)
+  (app)/page.tsx                 Trang chủ theo vai trò
+  (app)/classes/[classId]/       Dòng thời gian buổi học của lớp
+  (app)/classes/[classId]/sessions/[sessionId]/
+                                 Buổi học: tab Note, Homework, Điểm danh
+  (app)/homework/                Học viên: tất cả bài tập. GV: bài chờ chấm
+  (app)/admin/                   Học viên, lớp, giáo viên & giờ dạy
+components/                      UI (note, homework, điểm danh, shell…)
+lib/
+  types.ts                       Kiểu dữ liệu, khớp 1-1 với prisma/schema.prisma
+  store.tsx                      Data layer demo (thay bằng Server Actions khi có DB)
+  selectors.ts                   Truy vấn: lớp của account, trạng thái bài, giờ dạy…
+  mock-data.ts, lessons.ts       Dữ liệu mẫu
+prisma/schema.prisma             Schema PostgreSQL đề xuất (RDS / Aurora)
+docs/ARCHITECTURE.md             Idea, phân quyền, stack AWS, lộ trình
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, TypeScript
+- Đề xuất cho bản thật: Auth.js (Google) + Prisma + PostgreSQL trên Amazon RDS, file bài nộp trên S3, host bằng AWS Amplify hoặc Vercel
 
-## Deploy on Vercel
+## Bước tiếp theo (MVP)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Tạo RDS PostgreSQL, `npm i -D prisma && npm i @prisma/client`, chạy migration từ `prisma/schema.prisma`.
+2. Cài Auth.js với Google provider; callback `signIn` chỉ cho Gmail có trong bảng `Account`.
+3. Thay các action trong `lib/store.tsx` bằng Server Actions gọi Prisma; kiểm tra quyền ở server.
+4. Upload bài nộp lên S3 bằng presigned URL.
+5. Script import note cũ từ Google Docs.

@@ -1,26 +1,221 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Yose Center — "sổ tay lớp học"
+  Mực xanh trên giấy lạnh, highlighter vàng cho việc cần làm,
+  đường lề đỏ của vở cho dòng thời gian buổi học.
+*/
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --paper: #f2f4f8;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --ink: #18203a;
+  --ink-soft: #4a5372;
+  --muted: #737c99;
+  --rule: #dfe4ee;
+  --brand: #2d46c9;
+  --brand-ink: #ffffff;
+  --brand-soft: #e7ebfb;
+  --highlight: #ffe15a;
+  --margin: #e9a5ae;
+  --ok: #12805c;
+  --ok-soft: #e2f4ec;
+  --danger: #c2253d;
+  --danger-soft: #fbe7ea;
+  --late: #a45a07;
+  --late-soft: #fbf0df;
+  --t11: #6d4ad6;
+  --t11-soft: #eee9fc;
+  --t12: #0b8793;
+  --t12-soft: #e0f3f4;
+  --tg: #c42a63;
+  --tg-soft: #fbe6ee;
+  --shadow: 0 1px 2px rgb(24 32 58 / 0.06), 0 8px 24px -12px rgb(24 32 58 / 0.18);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --paper: #0e1322;
+    --surface: #161c30;
+    --surface-2: #1c2339;
+    --ink: #e7ebf6;
+    --ink-soft: #b9c1d9;
+    --muted: #8891ae;
+    --rule: #29314c;
+    --brand: #93a5ff;
+    --brand-ink: #0e1322;
+    --brand-soft: #222c55;
+    --highlight: rgb(255 214 64 / 0.3);
+    --margin: #7a3644;
+    --ok: #4fd1a1;
+    --ok-soft: #12352b;
+    --danger: #ff8095;
+    --danger-soft: #3a1a24;
+    --late: #f3b562;
+    --late-soft: #3a2a12;
+    --t11: #b9a6ff;
+    --t11-soft: #2a2350;
+    --t12: #63d7e0;
+    --t12-soft: #12333a;
+    --tg: #ff8db5;
+    --tg-soft: #3a1a2a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1322;
+  --surface: #161c30;
+  --surface-2: #1c2339;
+  --ink: #e7ebf6;
+  --ink-soft: #b9c1d9;
+  --muted: #8891ae;
+  --rule: #29314c;
+  --brand: #93a5ff;
+  --brand-ink: #0e1322;
+  --brand-soft: #222c55;
+  --highlight: rgb(255 214 64 / 0.3);
+  --margin: #7a3644;
+  --ok: #4fd1a1;
+  --ok-soft: #12352b;
+  --danger: #ff8095;
+  --danger-soft: #3a1a24;
+  --late: #f3b562;
+  --late-soft: #3a2a12;
+  --t11: #b9a6ff;
+  --t11-soft: #2a2350;
+  --t12: #63d7e0;
+  --t12-soft: #12333a;
+  --tg: #ff8db5;
+  --tg-soft: #3a1a2a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -14px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-margin: var(--margin);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-late: var(--late);
+  --color-late-soft: var(--late-soft);
+  --color-t11: var(--t11);
+  --color-t11-soft: var(--t11-soft);
+  --color-t12: var(--t12);
+  --color-t12-soft: var(--t12-soft);
+  --color-tg: var(--tg);
+  --color-tg-soft: var(--tg-soft);
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --shadow-card: var(--shadow);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Highlighter: vệt bút dạ quang hơi nghiêng, đánh dấu việc cần làm */
+.hl {
+  background-image: linear-gradient(
+    100deg,
+    transparent 0.4em,
+    var(--highlight) 0.55em,
+    var(--highlight) calc(100% - 0.4em),
+    transparent calc(100% - 0.25em)
+  );
+  background-size: 100% 62%;
+  background-position: 0 78%;
+  background-repeat: no-repeat;
+  padding: 0 0.35em;
+  margin: 0 -0.35em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Lề đỏ của vở: dùng cho dòng thời gian buổi học và trang note */
+.margin-line {
+  position: relative;
+}
+.margin-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--margin-x, 4.75rem);
+  border-left: 1.5px solid var(--margin);
+}
+
+.prose-note {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.prose-note h2 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  margin: 1.6em 0 0.5em;
+}
+.prose-note h2:first-child {
+  margin-top: 0;
+}
+.prose-note ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.prose-note li {
+  position: relative;
+  padding-left: 1.25em;
+  margin: 0.35em 0;
+}
+.prose-note li::before {
+  content: "";
+  position: absolute;
+  left: 0.15em;
+  top: 0.78em;
+  width: 0.4em;
+  height: 1.5px;
+  background: var(--brand);
+}
+.prose-note strong {
+  font-weight: 650;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
