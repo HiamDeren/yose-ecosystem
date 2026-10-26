@@ -65,6 +65,7 @@ components/homework-panel.tsx                Giao bài (kèm file), nộp bài (
 - `useEditor` của TipTap luôn đặt `immediatelyRender: false` (tránh lỗi hydration trong Next).
 - Viewer artifact/iframe chặn `confirm()`; xác nhận xóa làm bằng nút trong giao diện (đã làm vậy cho file và homework).
 - Kiểm tra trước khi commit: `npx eslint .` và `npm run build` phải sạch.
+- **Deploy:** Vercel tự deploy nhánh `main`. Gói Hobby chặn deploy nếu tác giả commit không phải chủ project, nên commit phải đứng tên `HiamDeren <93184692+HiamDeren@users.noreply.github.com>` (đặt `git config user.name/user.email` trong repo trước khi commit).
 
 ## Thiết kế
 
