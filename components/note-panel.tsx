@@ -1,42 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dateShort, time } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import type { ClassGroup, ClassSession, VocabItem } from "@/lib/types";
+import type { ClassGroup, ClassSession, SessionNote, VocabItem } from "@/lib/types";
+import { AttachmentList, UploadArea, useAttachments } from "./attachments";
 import { IconPen, IconPlus, IconTrash } from "./icons";
-import { RichText } from "./rich-text";
-import { ATTENDANCE_LABEL, AttendanceDot, Button, Empty, inputCls } from "./ui";
+import { NoteContent, NoteEditor } from "./rich-editor";
+import { ATTENDANCE_LABEL, AttendanceDot, Button, Empty, SectionTitle, inputCls } from "./ui";
+
+const TEMPLATE =
+  "<h2>Kế hoạch buổi học</h2><ol><li><p></p></li></ol><h2>Nội dung chính</h2><ul><li><p></p></li></ul><h2>Ghi trên lớp</h2><p></p>";
 
 export function NotePanel({ session, cls }: { session: ClassSession; cls: ClassGroup }) {
-  const { data, account } = useStore();
-  const [editing, setEditing] = useState(false);
+  const { account } = useStore();
+  return account?.role === "student" ? (
+    <StudentNote session={session} studentId={account.profileId!} />
+  ) : (
+    <TeacherNote session={session} cls={cls} />
+  );
+}
+
+/* ───────────── Học viên ───────────── */
+
+function StudentNote({ session, studentId }: { session: ClassSession; studentId: string }) {
+  const { data } = useStore();
   const note = data.notes.find((n) => n.sessionId === session.id);
-  const staff = account?.role !== "student";
-  const studentId = staff ? undefined : account?.profileId;
-  const remark = studentId
-    ? data.remarks.find((r) => r.sessionId === session.id && r.studentId === studentId)
-    : undefined;
-  const author = note && data.teachers.find((t) => t.id === note.authorId);
-
-  if (editing) return <NoteEditor session={session} onDone={() => setEditing(false)} />;
-
-  if (!note) {
-    return staff ? (
-      <Empty>
-        <p>Buổi này chưa có note.</p>
-        <Button className="mt-4" onClick={() => setEditing(true)}>
-          <IconPen size={16} /> Viết note buổi học
-        </Button>
-      </Empty>
-    ) : (
-      <Empty>
-        {session.status === "scheduled"
-          ? "Buổi học chưa diễn ra. Note sẽ có sau khi giáo viên cập nhật."
-          : "Giáo viên chưa cập nhật note cho buổi này."}
-      </Empty>
-    );
-  }
+  const materials = useAttachments("session", session.id);
+  const remark = data.remarks.find((r) => r.sessionId === session.id && r.studentId === studentId);
+  const visible = note?.publishedAt ? note : undefined;
 
   return (
     <div className="space-y-8">
@@ -50,114 +42,166 @@ export function NotePanel({ session, cls }: { session: ClassSession; cls: ClassG
         </div>
       )}
 
-      <article
-        className="margin-line relative rounded-xl border border-rule bg-surface py-6 pl-12 pr-5 shadow-card sm:pl-16 sm:pr-8"
-        style={{ ["--margin-x" as string]: "2.25rem" }}
-      >
-        <RichText source={note.content} />
-        <footer className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4 text-xs text-muted">
-          <span>
-            Cập nhật {time(note.updatedAt)} ngày {dateShort(note.updatedAt)}
-            {author ? ` bởi ${author.fullName}` : ""}
-          </span>
-          {staff && (
-            <Button variant="ghost" onClick={() => setEditing(true)}>
-              <IconPen size={15} /> Sửa note
-            </Button>
-          )}
-        </footer>
-      </article>
+      {visible ? (
+        <NoteSheet note={visible} />
+      ) : (
+        <Empty>
+          {session.status === "scheduled"
+            ? "Giáo viên sẽ công bố note khi buổi học bắt đầu."
+            : "Giáo viên chưa công bố note cho buổi này."}
+        </Empty>
+      )}
 
-      {note.vocab.length > 0 && (
+      {visible && visible.vocab.length > 0 && <Vocab items={visible.vocab} />}
+
+      {materials.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[0.95rem] font-semibold">
-            Từ vựng <span className="font-normal text-muted">{note.vocab.length} từ</span>
-          </h2>
-          <VocabTable items={note.vocab} />
+          <SectionTitle aside={`${materials.length} file`}>Tài liệu buổi học</SectionTitle>
+          <AttachmentList items={materials} />
         </section>
       )}
-
-      {cls.type === "GROUP" && staff && (
-        <p className="text-xs text-muted">Note này hiển thị cho cả {cls.name}. Nhận xét riêng nằm ở tab Điểm danh.</p>
-      )}
     </div>
   );
 }
 
-function VocabTable({ items }: { items: VocabItem[] }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-rule bg-surface">
-      <table className="w-full text-sm">
-        <thead className="hidden sm:table-header-group">
-          <tr className="border-b border-rule bg-surface-2 text-left text-xs text-muted">
-            <th className="px-4 py-2.5 font-medium">Từ</th>
-            <th className="px-4 py-2.5 font-medium">Nghĩa</th>
-            <th className="px-4 py-2.5 font-medium">Definition in English</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-rule">
-          {items.map((v, i) => (
-            <tr key={i} className="block px-4 py-3 sm:table-row sm:p-0">
-              <td className="block align-top sm:table-cell sm:px-4 sm:py-3">
-                <span className="font-serif text-[1.05rem] font-semibold text-ink">{v.word}</span>{" "}
-                <span className="text-xs italic text-muted">({v.partOfSpeech})</span>
-                {v.example && <div className="mt-1 font-serif text-[0.85rem] italic text-ink-soft">{v.example}</div>}
-              </td>
-              <td className="block align-top text-ink sm:table-cell sm:px-4 sm:py-3">{v.meaningVi}</td>
-              <td className="block align-top text-ink-soft sm:table-cell sm:px-4 sm:py-3">{v.definitionEn}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+/* ───────────── Giáo viên ───────────── */
 
-const blankVocab = (): VocabItem => ({ word: "", partOfSpeech: "", meaningVi: "", definitionEn: "" });
+function TeacherNote({ session, cls }: { session: ClassSession; cls: ClassGroup }) {
+  const { data, now, saveNote, setNotePublished } = useStore();
+  const note = data.notes.find((n) => n.sessionId === session.id);
+  const materials = useAttachments("session", session.id);
+  const [editing, setEditing] = useState(false);
+  const start = new Date(session.date).getTime();
+  const live = now >= start && now <= start + session.durationMin * 60_000;
 
-function NoteEditor({ session, onDone }: { session: ClassSession; onDone: () => void }) {
-  const { data, saveNote } = useStore();
-  const existing = data.notes.find((n) => n.sessionId === session.id);
-  const [content, setContent] = useState(
-    existing?.content ?? "## Nội dung chính\n- \n\n## Lưu ý cho buổi sau\n- ",
-  );
-  const [vocab, setVocab] = useState<VocabItem[]>(existing?.vocab.length ? existing.vocab : [blankVocab()]);
-
-  const update = (i: number, patch: Partial<VocabItem>) =>
-    setVocab((list) => list.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+  const begin = () => {
+    if (!note) saveNote(session.id, TEMPLATE, []);
+    setEditing(true);
+  };
 
   return (
-    <form
-      className="space-y-8"
-      onSubmit={(e) => {
-        e.preventDefault();
-        saveNote(session.id, content, vocab.filter((v) => v.word.trim()));
-        onDone();
-      }}
-    >
-      <div className="grid gap-4 lg:grid-cols-2">
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium">Nội dung note</span>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={14}
-            className={`${inputCls} font-mono text-[0.85rem] leading-relaxed`}
-          />
-          <span className="mt-1 block text-xs text-muted">
-            Dùng &quot;## &quot; cho tiêu đề, &quot;- &quot; cho gạch đầu dòng, **đậm**, *nghiêng*.
-          </span>
-        </label>
-        <div>
-          <span className="mb-1.5 block text-sm font-medium">Xem trước</span>
-          <div className="min-h-[14rem] rounded-lg border border-rule bg-surface p-4">
-            <RichText source={content} />
-          </div>
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rule bg-surface px-4 py-3 shadow-card">
+        <NoteStatus note={note} live={live} />
+        <div className="ml-auto flex flex-wrap gap-2">
+          {editing ? (
+            <Button onClick={() => setEditing(false)}>Xong</Button>
+          ) : (
+            <Button variant={note ? "ghost" : "primary"} onClick={begin}>
+              <IconPen size={15} />
+              {!note ? "Soạn bài" : live ? "Ghi trên lớp" : "Mở trình soạn"}
+            </Button>
+          )}
+          {note &&
+            (note.publishedAt ? (
+              <Button variant="ghost" onClick={() => setNotePublished(session.id, false)}>
+                Ẩn khỏi học viên
+              </Button>
+            ) : (
+              <Button onClick={() => setNotePublished(session.id, true)}>Công bố cho học viên</Button>
+            ))}
         </div>
       </div>
 
+      {editing && note ? (
+        <Workspace key={session.id} note={note} />
+      ) : note ? (
+        <>
+          <NoteSheet note={note} />
+          {note.vocab.length > 0 && <Vocab items={note.vocab} />}
+        </>
+      ) : (
+        <Empty>
+          Chưa có note. Bấm <b className="font-medium text-ink">Soạn bài</b> để soạn trước buổi học; học viên chỉ thấy khi bạn
+          công bố. Lúc dạy, mở lại để ghi tiếp ngay trên lớp.
+        </Empty>
+      )}
+
+      <section>
+        <SectionTitle aside={materials.length ? `${materials.length} file` : undefined}>Tài liệu buổi học</SectionTitle>
+        <div className="space-y-3">
+          <AttachmentList items={materials} canRemove />
+          <UploadArea ownerType="session" ownerId={session.id} label="Thêm tài liệu: bài đọc, file nghe, slide…" />
+          <p className="text-xs text-muted">
+            Học viên của {cls.name} thấy tài liệu ngay khi tải lên, không cần chia sẻ quyền từng người.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function NoteStatus({ note, live }: { note?: SessionNote; live: boolean }) {
+  return (
+    <div className="min-w-0 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        {live && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-danger" aria-hidden /> Đang trong giờ học
+          </span>
+        )}
+        {!note ? (
+          <span className="font-medium text-ink">Chưa soạn</span>
+        ) : note.publishedAt ? (
+          <span className="font-medium text-ok">Đã công bố cho học viên</span>
+        ) : (
+          <span className="hl font-medium text-ink">Bản nháp, học viên chưa thấy</span>
+        )}
+      </div>
+      {note && (
+        <div className="mt-0.5 text-xs text-muted">
+          Lưu lần cuối {time(note.updatedAt)} ngày {dateShort(note.updatedAt)}
+          {note.publishedAt && `, công bố ${time(note.publishedAt)} ${dateShort(note.publishedAt)}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Soạn + tự lưu, giống cảm giác Google Docs */
+function Workspace({ note }: { note: SessionNote }) {
+  const { saveNote } = useStore();
+  const [html, setHtml] = useState(note.html);
+  const [vocab, setVocab] = useState<VocabItem[]>(note.vocab.length ? note.vocab : [blankVocab()]);
+  const [saved, setSaved] = useState<"saved" | "saving">("saved");
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const t = window.setTimeout(() => {
+      saveNote(note.sessionId, html, vocab.filter((v) => v.word.trim()));
+      setSaved("saved");
+    }, 700);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autosave theo nội dung
+  }, [html, vocab]);
+
+  const update = (i: number, patch: Partial<VocabItem>) => {
+    setSaved("saving");
+    setVocab((list) => list.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="mb-2 flex items-center justify-between text-xs text-muted">
+          <span>Bút dạ quang để đánh dấu chỗ học viên hay sai. Mọi thay đổi tự lưu.</span>
+          <span aria-live="polite">{saved === "saving" ? "Đang lưu…" : "Đã lưu"}</span>
+        </div>
+        <NoteEditor
+          initialHtml={note.html}
+          onChange={(h) => {
+            setSaved("saving");
+            setHtml(h);
+          }}
+        />
+      </div>
+
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">Từ vựng</legend>
+        <legend className="mb-2 text-sm font-semibold">Từ vựng</legend>
         <div className="space-y-2">
           {vocab.map((v, i) => (
             <div key={i} className="grid gap-2 rounded-lg border border-rule bg-surface p-2 sm:grid-cols-[1.1fr_0.5fr_1fr_1.6fr_auto]">
@@ -167,7 +211,10 @@ function NoteEditor({ session, onDone }: { session: ClassSession; onDone: () => 
               <input aria-label="Definition in English" placeholder="Definition in English" value={v.definitionEn} onChange={(e) => update(i, { definitionEn: e.target.value })} className={inputCls} />
               <button
                 type="button"
-                onClick={() => setVocab((l) => l.filter((_, j) => j !== i))}
+                onClick={() => {
+                  setSaved("saving");
+                  setVocab((l) => l.filter((_, j) => j !== i));
+                }}
                 className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-danger-soft hover:text-danger"
                 aria-label={`Xóa từ ${v.word || i + 1}`}
               >
@@ -180,13 +227,59 @@ function NoteEditor({ session, onDone }: { session: ClassSession; onDone: () => 
           <IconPlus size={16} /> Thêm từ
         </Button>
       </fieldset>
+    </div>
+  );
+}
 
-      <div className="flex gap-2">
-        <Button type="submit">Lưu note</Button>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Hủy
-        </Button>
+const blankVocab = (): VocabItem => ({ word: "", partOfSpeech: "", meaningVi: "", definitionEn: "" });
+
+/* ───────────── dùng chung ───────────── */
+
+function NoteSheet({ note }: { note: SessionNote }) {
+  const { data } = useStore();
+  const author = data.teachers.find((t) => t.id === note.authorId);
+  return (
+    <article
+      className="margin-line relative rounded-xl border border-rule bg-surface py-6 pl-12 pr-5 shadow-card sm:pl-16 sm:pr-8"
+      style={{ ["--margin-x" as string]: "2.25rem" }}
+    >
+      <NoteContent html={note.html} />
+      <footer className="mt-6 border-t border-rule pt-4 text-xs text-muted">
+        Cập nhật {time(note.updatedAt)} ngày {dateShort(note.updatedAt)}
+        {author ? ` bởi ${author.fullName}` : ""}
+      </footer>
+    </article>
+  );
+}
+
+function Vocab({ items }: { items: VocabItem[] }) {
+  return (
+    <section>
+      <SectionTitle aside={`${items.length} từ`}>Từ vựng</SectionTitle>
+      <div className="overflow-hidden rounded-xl border border-rule bg-surface">
+        <table className="w-full text-sm">
+          <thead className="hidden sm:table-header-group">
+            <tr className="border-b border-rule bg-surface-2 text-left text-xs text-muted">
+              <th className="px-4 py-2.5 font-medium">Từ</th>
+              <th className="px-4 py-2.5 font-medium">Nghĩa</th>
+              <th className="px-4 py-2.5 font-medium">Definition in English</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-rule">
+            {items.map((v, i) => (
+              <tr key={i} className="block px-4 py-3 sm:table-row sm:p-0">
+                <td className="block align-top sm:table-cell sm:px-4 sm:py-3">
+                  <span className="font-serif text-[1.05rem] font-semibold text-ink">{v.word}</span>{" "}
+                  <span className="text-xs italic text-muted">({v.partOfSpeech})</span>
+                  {v.example && <div className="mt-1 font-serif text-[0.85rem] italic text-ink-soft">{v.example}</div>}
+                </td>
+                <td className="block align-top text-ink sm:table-cell sm:px-4 sm:py-3">{v.meaningVi}</td>
+                <td className="block align-top text-ink-soft sm:table-cell sm:px-4 sm:py-3">{v.definitionEn}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </form>
+    </section>
   );
 }

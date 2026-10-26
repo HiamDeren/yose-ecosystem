@@ -46,7 +46,7 @@ export default function LoginPage() {
         <div className="relative flex h-full flex-col justify-between py-14 pl-32 pr-14">
           <div className="flex items-center gap-3">
             <Logo size={34} />
-            <span className="text-lg font-semibold tracking-tight">Yose Center</span>
+            <span className="text-lg font-semibold tracking-tight">Yose Home</span>
           </div>
           <div className="max-w-md">
             <p className="font-serif text-[2.35rem] leading-[1.2] text-ink">
@@ -66,7 +66,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-10 flex items-center gap-2.5 lg:hidden">
             <Logo />
-            <span className="font-semibold tracking-tight">Yose Center</span>
+            <span className="font-semibold tracking-tight">Yose Home</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Đăng nhập</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted">

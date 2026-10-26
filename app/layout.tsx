@@ -3,7 +3,7 @@ import { StoreProvider } from "@/lib/store";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Yose Center",
+  title: "Yose Home",
   description: "Note trên lớp, homework và lịch học của học viên Yose",
 };
 

@@ -83,13 +83,39 @@ export interface VocabItem {
   example?: string;
 }
 
+/**
+ * Note của buổi học, thay cho file Google Docs mỗi buổi.
+ * GV soạn trước (bản nháp, HV chưa thấy) → công bố → ghi tiếp ngay trên lớp.
+ */
 export interface SessionNote {
   sessionId: string;
-  /** Markdown đơn giản: "## ", "- ", **bold** */
-  content: string;
+  /** HTML do trình soạn TipTap sinh ra. Production nên lưu JSON của TipTap (jsonb). */
+  html: string;
   vocab: VocabItem[];
   updatedAt: string;
   authorId: string;
+  /** undefined = bản nháp, học viên chưa thấy */
+  publishedAt?: string;
+}
+
+export type AttachmentOwner = "session" | "homework" | "submission";
+
+/**
+ * File đính kèm, thay cho folder Google Drive.
+ * Demo: nội dung file nằm trong IndexedDB của trình duyệt (lib/file-store.ts).
+ * Production: nằm trên S3, `id` chính là S3 key.
+ */
+export interface Attachment {
+  id: string;
+  ownerType: AttachmentOwner;
+  ownerId: string;
+  name: string;
+  size: number;
+  mime: string;
+  uploadedAt: string;
+  uploaderId: string;
+  /** Tệp mẫu của demo, không có nội dung thật */
+  sample?: boolean;
 }
 
 export type AttendanceStatus = "present" | "late" | "absent" | "excused";
@@ -135,6 +161,7 @@ export interface YoseData {
   remarks: StudentRemark[];
   homework: Homework[];
   submissions: Submission[];
+  attachments: Attachment[];
 }
 
 export type HomeworkState = "todo" | "overdue" | "submitted" | "reviewed";

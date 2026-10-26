@@ -131,14 +131,52 @@ model ClassSession {
   @@index([teacherId, startsAt])
 }
 
-/// Note chung trên lớp (thay cho Google Docs hiện tại)
+/// Note của buổi học, thay cho file Google Docs mỗi buổi.
+/// GV soạn trước (publishedAt = null → học viên chưa thấy), công bố, rồi ghi tiếp trên lớp.
 model SessionNote {
-  sessionId String       @id
-  session   ClassSession @relation(fields: [sessionId], references: [id])
-  content   String       // markdown
-  vocab     Json         // [{ word, partOfSpeech, meaningVi, definitionEn, example }]
-  updatedAt DateTime     @updatedAt
+  sessionId   String       @id
+  session     ClassSession @relation(fields: [sessionId], references: [id])
+  doc         Json         // TipTap/ProseMirror JSON (editor.getJSON())
+  vocab       Json         // [{ word, partOfSpeech, meaningVi, definitionEn, example }]
+  updatedAt   DateTime     @updatedAt
+  authorId    String
+  publishedAt DateTime?
+  revisions   NoteRevision[]
+}
+
+/// Lịch sử phiên bản note (giống "Version history" của Google Docs)
+model NoteRevision {
+  id        String      @id @default(cuid())
+  sessionId String
+  note      SessionNote @relation(fields: [sessionId], references: [sessionId])
+  doc       Json
   authorId  String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+enum AttachmentOwner {
+  SESSION    // tài liệu buổi học
+  HOMEWORK   // file GV gửi kèm bài tập
+  SUBMISSION // file học viên nộp
+}
+
+/// File đính kèm, thay cho folder Google Drive. Nội dung nằm trên S3,
+/// quyền xem suy ra từ lớp (Enrollment) chứ không chia sẻ từng file.
+model Attachment {
+  id         String          @id @default(cuid())
+  ownerType  AttachmentOwner
+  ownerId    String          // id của ClassSession / Homework / Submission
+  s3Key      String          @unique // classes/{classId}/sessions/{sessionId}/{uuid}-{name}
+  name       String
+  size       Int
+  mime       String
+  uploaderId String          // Account.id
+  createdAt  DateTime        @default(now())
+  deletedAt  DateTime?       // xóa mềm, job dọn S3 chạy sau
+
+  @@index([ownerType, ownerId])
 }
 
 /// Điểm danh + nhận xét riêng từng học viên mỗi buổi
@@ -164,7 +202,6 @@ model Homework {
   dueAt        DateTime
   /// rỗng = cả lớp; có id = giao riêng
   assigneeIds  String[]
-  attachments  String[]     // S3 keys
   submissions  Submission[]
   createdAt    DateTime     @default(now())
 }
@@ -175,9 +212,8 @@ model Submission {
   studentId   String
   homework    Homework         @relation(fields: [homeworkId], references: [id])
   student     Student          @relation(fields: [studentId], references: [id])
-  content     String
+  content     String           @default("")
   link        String?
-  fileKeys    String[]         // S3 keys (upload qua presigned URL)
   status      SubmissionStatus @default(SUBMITTED)
   score       Decimal?         @db.Decimal(4, 1)
   feedback    String?

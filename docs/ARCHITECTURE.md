@@ -1,4 +1,4 @@
-# Yose Center: idea và kiến trúc
+# Yose Center (app: Yose Home): idea và kiến trúc
 
 ## 1. Bài toán
 
@@ -85,20 +85,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 ```
 
-## 7. Chuyển dữ liệu từ Google Docs
+## 7. Thay cho Google Docs và Google Drive
 
-Mỗi Google Doc hiện tại thường là "1 lớp, nhiều buổi". Hướng import:
+### Luồng hiện tại và luồng mới
 
-1. Đọc doc qua Google Docs API, tách theo heading "Buổi X" / "Lesson X".
-2. Mỗi phần thành 1 `ClassSession` + `SessionNote`; bảng trong doc thành `vocab`.
-3. Phần "Homework" trong doc thành `Homework`.
-4. Chạy 1 lần bằng script `scripts/import-gdocs.ts`, kiểm tra tay rồi mới bật cho học viên.
+| Hiện tại (Google) | Trong Yose Home |
+|---|---|
+| GV tạo folder Drive cho lớp, cấp quyền từng học viên | Lớp có sẵn khi admin mở lớp; học viên ghi danh là thấy, không cấp quyền thủ công |
+| Trước buổi học, GV tạo file Docs soạn nội dung | Tab **Note trên lớp** của buổi: GV bấm *Soạn bài*, note ở trạng thái **bản nháp** (học viên chưa thấy) |
+| Lúc dạy, GV ghi thẳng vào file Docs đã soạn | Mở lại trình soạn (*Ghi trên lớp*), tự lưu sau mỗi lần gõ, có bút dạ quang để đánh dấu lỗi hay gặp. Bấm **Công bố** để học viên thấy |
+| File nghe, bài đọc, slide nằm rải trong Drive | **Tài liệu buổi học**: kéo thả file vào buổi đó |
+| Folder homework, mỗi buổi ghi đề vào 1 file | Homework gắn với buổi, có hạn nộp, file đề kèm theo, học viên nộp file/ảnh/ghi âm ngay trong app, GV chấm điểm và nhận xét |
 
-## 8. Lộ trình
+### Các phương án đã cân nhắc
+
+| Phương án | Ưu | Nhược |
+|---|---|---|
+| A. Giữ Google, app chỉ nhúng/link Docs và Drive (Drive API) | Ít thay đổi thói quen | Vẫn phụ thuộc Google, quản lý quyền vẫn rời rạc, không chấm bài/nhắc hạn được |
+| B. Lai: app là nơi chính, cho phép đính kèm link Docs | Chuyển dần | Dữ liệu vẫn tách 2 nơi, khó tìm kiếm, khó báo cáo |
+| **C. Tự chủ hoàn toàn (đang làm)**: trình soạn trong app + file trên S3 | Một nơi duy nhất, quyền theo lớp, có trạng thái nháp/công bố, tìm kiếm và thống kê được, sẵn sàng cho module lương | Phải tự làm editor và lưu file (đã giải quyết bằng TipTap + S3), cần 1 lần import dữ liệu cũ |
+
+### Kỹ thuật
+
+- **Trình soạn:** [TipTap](https://tiptap.dev) (nền ProseMirror): tiêu đề, đậm/nghiêng/gạch chân, bút dạ quang, danh sách, trích dẫn, hoàn tác. Production lưu `editor.getJSON()` vào cột `jsonb`, mỗi lần lưu tạo `NoteRevision` (lịch sử phiên bản như Docs). Muốn nhiều người cùng sửa realtime thì thêm Hocuspocus/Yjs sau, không cần đổi schema.
+- **Lưu file:** S3, key dạng `classes/{classId}/sessions/{sessionId}/{uuid}-{tên file}`. Trình duyệt xin **presigned PUT URL** từ server rồi upload thẳng lên S3 (server không phải chuyển tiếp file). Xem/tải bằng **presigned GET URL** hết hạn sau vài phút, chỉ cấp khi người xin có quyền với lớp. Có thể đặt CloudFront phía trước.
+- **Giới hạn:** 25 MB mỗi file (video dài nên để YouTube không công khai và dán link), chỉ nhận PDF, Office, ảnh, âm thanh, MP4. Lifecycle S3 chuyển file của lớp đã kết thúc sang Glacier sau 12 tháng.
+- **Ghi âm bài nói:** dùng MediaRecorder ngay trên trình duyệt, nộp thành file `.webm`, không cần app khác.
+- **Xuất file:** khi cần gửi ra ngoài, xuất note sang PDF hoặc .docx từ JSON của TipTap.
+- **Bản demo:** nội dung file lưu trong IndexedDB của trình duyệt (`lib/file-store.ts`), chỉ để trải nghiệm luồng; thay 3 hàm `putFile/getFile/deleteFile` bằng gọi S3 là xong.
+
+## 8. Chuyển dữ liệu từ Google Docs
+
+Hiện tại mỗi lớp là 1 folder Drive, mỗi buổi 1 file Docs, cộng 1 folder homework. Hướng import (chạy 1 lần):
+
+1. GV/admin chọn folder lớp; script dùng Drive API liệt kê file theo thứ tự tên/ngày tạo, ghép với `ClassSession` theo số buổi.
+2. Mỗi file Docs: xuất HTML qua Drive API (`files.export`), chuyển sang JSON của TipTap → `SessionNote` (đánh dấu đã công bố); bảng từ vựng trong doc → `vocab`.
+3. File không phải Docs (PDF, mp3, slide) → tải về và đẩy lên S3 thành `Attachment` của buổi.
+4. Folder homework → `Homework` của buổi tương ứng.
+5. Kiểm tra tay vài lớp rồi mới mở cho học viên. Sau đó Drive chỉ còn là kho lưu trữ cũ.
+
+## 9. Lộ trình
 
 | Giai đoạn | Nội dung |
 |---|---|
 | 0. Demo (repo này) | UI đầy đủ 3 vai trò với mock data, lưu localStorage |
-| 1. MVP | Postgres + Prisma, Auth.js Google, CRUD note/homework, upload S3 |
-| 2. Vận hành | Import Google Docs, sinh lịch buổi học tự động từ `schedule`, nhắc bài qua email |
+| 1. MVP | Postgres + Prisma, Auth.js Google, note bằng TipTap (lưu JSON + lịch sử), upload S3 bằng presigned URL |
+| 2. Vận hành | Import từ Google Drive/Docs, sinh lịch buổi học tự động từ `schedule`, nhắc bài qua email, xuất note PDF/.docx |
 | 3. Giáo viên & lương | Giờ dạy từ `ClassSession` (đã có `teacherId` + `durationMin`), dạy thay, bảng `Payroll` theo tháng, duyệt và xuất phiếu lương |

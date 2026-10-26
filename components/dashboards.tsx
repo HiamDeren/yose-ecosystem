@@ -75,8 +75,9 @@ export function TeacherHome({ account }: { account: Account }) {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const missingNote = data.sessions.filter(
-    (s) => ids.includes(s.classId) && s.status === "done" && !data.notes.some((n) => n.sessionId === s.id),
+    (s) => ids.includes(s.classId) && s.status === "done" && !data.notes.some((n) => n.sessionId === s.id && n.publishedAt),
   );
+  const unprepared = upcoming.filter((s) => !data.notes.some((n) => n.sessionId === s.id));
 
   return (
     <>
@@ -109,6 +110,9 @@ export function TeacherHome({ account }: { account: Account }) {
                       <div className="mt-0.5 truncate text-sm font-medium">
                         Buổi {s.index}: {s.topic}
                       </div>
+                      <div className="mt-0.5 text-xs text-muted">
+                        {data.notes.some((n) => n.sessionId === s.id) ? "Đã soạn bài" : <span className="hl text-ink">Chưa soạn bài</span>}
+                      </div>
                     </div>
                     <IconChevron className="text-muted" />
                   </Link>
@@ -128,7 +132,11 @@ export function TeacherHome({ account }: { account: Account }) {
               <span className={review.length ? "hl font-semibold tabular-nums" : "text-muted"}>{review.length}</span>
             </Link>
             <div className="flex items-center justify-between px-4 py-3.5">
-              <span>Buổi đã dạy chưa có note</span>
+              <span>Buổi 7 ngày tới chưa soạn bài</span>
+              <span className={unprepared.length ? "hl font-semibold tabular-nums" : "text-muted"}>{unprepared.length}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <span>Buổi đã dạy chưa công bố note</span>
               <span className={missingNote.length ? "hl font-semibold" : "text-muted"}>{missingNote.length}</span>
             </div>
           </Panel>

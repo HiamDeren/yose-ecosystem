@@ -1,6 +1,6 @@
-# Yose Center
+# Yose Center (Yose Home)
 
-Nền tảng quản lý lớp học của Yose: **note trên lớp** và **homework** chia theo từng buổi, theo từng lớp, theo từng học viên. Giai đoạn sau gộp thêm quản lý giáo viên, giờ dạy và lương.
+Nền tảng quản lý lớp học của Yose: **note trên lớp**, **tài liệu** và **homework** chia theo từng buổi, theo từng lớp, theo từng học viên, thay cho việc dùng folder Google Drive và file Google Docs. Giai đoạn sau gộp thêm quản lý giáo viên, giờ dạy và lương.
 
 > Repo này là **bản demo**: giao diện đầy đủ cho 3 vai trò, chạy bằng dữ liệu mẫu lưu trong trình duyệt (localStorage). Chưa nối database và Google OAuth thật. Kiến trúc và schema cho bản thật nằm ở [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) và [`prisma/schema.prisma`](prisma/schema.prisma).
 
@@ -18,10 +18,10 @@ Bấm **Tiếp tục với Google**, chọn một tài khoản mẫu:
 |---|---|
 | Nguyễn Minh Anh (YS-24017) | Học 1 lớp **1-1** (Speaking IELTS) và 1 lớp **nhóm 12** (Intern Read-Lis). Vào lớp → buổi → note + homework, nộp bài |
 | Trần Gia Huy | Lớp **1-2** (Communication) và Intern Read-Lis |
-| Trần Mỹ Linh (giáo viên) | Lịch dạy, viết/sửa note, giao homework, chấm bài, điểm danh và nhận xét riêng |
+| Trần Mỹ Linh (giáo viên) | Soạn note trước buổi (bản nháp) → công bố → ghi tiếp trên lớp; tải tài liệu buổi học; giao homework kèm file; chấm bài; điểm danh và nhận xét riêng |
 | Quản trị Yose | Tổng quan, danh sách học viên theo mã, lớp theo loại, giờ dạy và lương tạm tính của giáo viên |
 
-Mọi thay đổi (nộp bài, chấm điểm, sửa note) được lưu trong trình duyệt. **Đặt lại dữ liệu demo** ở góc dưới sidebar để tạo lại dữ liệu mẫu.
+Mọi thay đổi (nộp bài, chấm điểm, sửa note, file tải lên) được lưu trong trình duyệt; file mẫu có sẵn chỉ là tên file, không có nội dung. **Đặt lại dữ liệu demo** ở góc dưới sidebar để tạo lại dữ liệu mẫu.
 
 ## Cấu trúc
 

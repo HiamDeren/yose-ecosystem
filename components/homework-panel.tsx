@@ -5,6 +5,15 @@ import { dateLong, dateShort, dueLabel, time } from "@/lib/format";
 import { homeworkOfSession, homeworkState, rosterOf, submissionOf } from "@/lib/selectors";
 import { useStore } from "@/lib/store";
 import type { ClassGroup, ClassSession, Homework, Student, Submission } from "@/lib/types";
+import {
+  AttachmentList,
+  AudioRecorder,
+  FileDrop,
+  PendingList,
+  UploadArea,
+  useAttachments,
+  type PendingFile,
+} from "./attachments";
 import { IconCheck, IconLink, IconPen, IconPlus, IconTrash } from "./icons";
 import { Avatar, Button, Empty, HomeworkStatus, inputCls } from "./ui";
 
@@ -32,13 +41,21 @@ function StudentHomework({ session, studentId }: { session: ClassSession; studen
 }
 
 function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: string }) {
-  const { data, submitHomework } = useStore();
+  const { data, submitHomework, addAttachment } = useStore();
   const sub = submissionOf(data, hw.id, studentId);
   const state = homeworkState(data, hw, studentId);
+  const hwFiles = useAttachments("homework", hw.id);
+  const subFiles = useAttachments("submission", sub?.id ?? "");
   const [editing, setEditing] = useState(!sub);
   const [content, setContent] = useState(sub?.content ?? "");
   const [link, setLink] = useState(sub?.link ?? "");
+  const [pending, setPending] = useState<PendingFile[]>([]);
+  const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState(false);
+
+  const addPending = (blob: Blob, name: string) =>
+    setPending((p) => [...p, { key: crypto.randomUUID(), blob, name }]);
+  const canSend = !!content.trim() || pending.length > 0 || subFiles.length > 0;
 
   return (
     <article className="overflow-hidden rounded-xl border border-rule bg-surface shadow-card">
@@ -54,6 +71,12 @@ function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: strin
           )}
         </p>
         <p className="mt-4 max-w-prose font-serif text-[1.02rem] leading-relaxed text-ink">{hw.instructions}</p>
+        {hwFiles.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-1.5 text-xs font-medium text-muted">File giáo viên gửi kèm</div>
+            <AttachmentList items={hwFiles} />
+          </div>
+        )}
       </div>
 
       {sub?.status === "reviewed" && (
@@ -71,9 +94,14 @@ function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: strin
           <div className="text-sm">
             <div className="flex items-center gap-2 text-muted">
               <IconCheck size={16} className="text-ok" />
-              {justSent ? "Đã nộp bài." : "Bạn đã nộp"} lúc {time(sub.submittedAt)} ngày {dateShort(sub.submittedAt)}
+              {justSent ? "Đã nộp bài" : "Bạn đã nộp"} lúc {time(sub.submittedAt)} ngày {dateShort(sub.submittedAt)}
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-ink">{sub.content}</p>
+            {sub.content && <p className="mt-2 whitespace-pre-wrap text-ink">{sub.content}</p>}
+            {subFiles.length > 0 && (
+              <div className="mt-3">
+                <AttachmentList items={subFiles} />
+              </div>
+            )}
             {sub.link && (
               <a
                 href={sub.link}
@@ -92,18 +120,39 @@ function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: strin
           </div>
         ) : (
           <form
-            className="space-y-3"
-            onSubmit={(e) => {
+            className="space-y-4"
+            onSubmit={async (e) => {
               e.preventDefault();
-              submitHomework(hw.id, content.trim(), link.trim());
+              if (!canSend) return;
+              setSending(true);
+              const id = submitHomework(hw.id, content.trim(), link.trim());
+              if (id) for (const f of pending) await addAttachment("submission", id, f.blob, f.name);
+              setPending([]);
+              setSending(false);
               setEditing(false);
               setJustSent(true);
             }}
           >
+            <div className="space-y-2">
+              <span className="block text-sm font-medium">File bài làm</span>
+              {subFiles.length > 0 && <AttachmentList items={subFiles} canRemove />}
+              <PendingList files={pending} onRemove={(k) => setPending((p) => p.filter((f) => f.key !== k))} />
+              <FileDrop
+                label="Kéo thả ảnh chụp bài làm, file Word, PDF…"
+                onFiles={(files) => files.forEach((f) => addPending(f, f.name))}
+              />
+              <AudioRecorder
+                onRecorded={(blob) => {
+                  const d = new Date();
+                  addPending(blob, `ghi-am-${d.getHours()}h${String(d.getMinutes()).padStart(2, "0")}.webm`);
+                }}
+              />
+            </div>
             <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Bài làm</span>
+              <span className="mb-1.5 block text-sm font-medium">
+                Bài làm dạng chữ <span className="font-normal text-muted">(không bắt buộc nếu đã có file)</span>
+              </span>
               <textarea
-                required
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={5}
@@ -113,7 +162,7 @@ function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: strin
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">
-                Link đính kèm <span className="font-normal text-muted">(Google Drive, ghi âm, video)</span>
+                Link <span className="font-normal text-muted">(nếu bài nằm ở nơi khác, vd video YouTube)</span>
               </span>
               <input
                 type="url"
@@ -124,8 +173,8 @@ function StudentHomeworkCard({ hw, studentId }: { hw: Homework; studentId: strin
               />
             </label>
             <div className="flex gap-2">
-              <Button type="submit" disabled={!content.trim()}>
-                {sub ? "Nộp lại" : "Nộp bài"}
+              <Button type="submit" disabled={!canSend || sending}>
+                {sending ? "Đang nộp…" : sub ? "Nộp lại" : "Nộp bài"}
               </Button>
               {sub && (
                 <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
@@ -150,7 +199,7 @@ function defaultDue(session: ClassSession) {
 }
 
 function TeacherHomework({ session, cls }: { session: ClassSession; cls: ClassGroup }) {
-  const { data, addHomework } = useStore();
+  const { data, addHomework, addAttachment } = useStore();
   const list = homeworkOfSession(data, session.id);
   const roster = rosterOf(data, cls.id);
   const [adding, setAdding] = useState(list.length === 0);
@@ -167,8 +216,9 @@ function TeacherHomework({ session, cls }: { session: ClassSession; cls: ClassGr
           roster={roster}
           canTarget={cls.type !== "ONE_ON_ONE"}
           onCancel={list.length ? () => setAdding(false) : undefined}
-          onSave={(hw) => {
-            addHomework({ ...hw, sessionId: session.id });
+          onSave={async (hw, files) => {
+            const id = addHomework({ ...hw, sessionId: session.id });
+            for (const f of files) await addAttachment("homework", id, f, f.name);
             setAdding(false);
           }}
         />
@@ -193,7 +243,7 @@ function HomeworkForm({
   roster: Student[];
   canTarget: boolean;
   initial?: Homework;
-  onSave: (hw: Omit<Homework, "id" | "sessionId">) => void;
+  onSave: (hw: Omit<Homework, "id" | "sessionId">, files: File[]) => void;
   onCancel?: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -204,6 +254,7 @@ function HomeworkForm({
     return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   });
   const [targets, setTargets] = useState<string[] | null>(initial?.assigneeIds ?? null);
+  const [files, setFiles] = useState<File[]>([]);
 
   return (
     <form
@@ -215,7 +266,7 @@ function HomeworkForm({
           instructions: instructions.trim(),
           dueAt: new Date(due).toISOString(),
           assigneeIds: targets && targets.length ? targets : null,
-        });
+        }, files);
       }}
     >
       <h3 className="font-semibold">{initial ? "Sửa homework" : "Giao homework"}</h3>
@@ -227,6 +278,16 @@ function HomeworkForm({
         <span className="mb-1.5 block text-sm font-medium">Hướng dẫn</span>
         <textarea required rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} className={inputCls} />
       </label>
+      {!initial && (
+        <div className="space-y-2">
+          <span className="block text-sm font-medium">File kèm bài</span>
+          <PendingList
+            files={files.map((f, i) => ({ key: `${i}-${f.name}`, blob: f, name: f.name }))}
+            onRemove={(k) => setFiles((l) => l.filter((f, i) => `${i}-${f.name}` !== k))}
+          />
+          <FileDrop label="Đề bài, file nghe, answer sheet…" onFiles={(fs) => setFiles((l) => [...l, ...fs])} />
+        </div>
+      )}
       <label className="block max-w-xs">
         <span className="mb-1.5 block text-sm font-medium">Hạn nộp</span>
         <input type="datetime-local" required value={due} onChange={(e) => setDue(e.target.value)} className={inputCls} />
@@ -291,6 +352,8 @@ function TeacherHomeworkCard({ hw, roster }: { hw: Homework; roster: Student[] }
   const session = data.sessions.find((s) => s.id === hw.sessionId)!;
   const cls = data.classes.find((c) => c.id === session.classId)!;
   const [editing, setEditing] = useState(false);
+  const hwFiles = useAttachments("homework", hw.id);
+  const [confirmDel, setConfirmDel] = useState(false);
   const assigned = hw.assigneeIds ? roster.filter((s) => hw.assigneeIds!.includes(s.id)) : roster;
   const subs = assigned.map((s) => ({ student: s, sub: submissionOf(data, hw.id, s.id) }));
   const submitted = subs.filter((x) => x.sub).length;
@@ -330,16 +393,25 @@ function TeacherHomeworkCard({ hw, roster }: { hw: Homework; roster: Student[] }
           <Button variant="ghost" onClick={() => setEditing(true)}>
             <IconPen size={15} /> Sửa
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (confirm(`Xóa homework "${hw.title}" và toàn bộ bài nộp?`)) deleteHomework(hw.id);
-            }}
-          >
-            <IconTrash size={15} />
-            <span className="sr-only">Xóa</span>
-          </Button>
+            {confirmDel ? (
+            <>
+              <Button variant="danger" onClick={() => deleteHomework(hw.id)}>
+                Xóa bài và bài nộp
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmDel(false)}>
+                Hủy
+              </Button>
+            </>
+          ) : (
+            <Button variant="danger" onClick={() => setConfirmDel(true)} aria-label="Xóa homework">
+              <IconTrash size={15} />
+            </Button>
+          )}
         </div>
+      </div>
+      <div className="space-y-2 px-5 pb-5">
+        <AttachmentList items={hwFiles} canRemove />
+        <UploadArea ownerType="homework" ownerId={hw.id} label="Thêm file cho bài này" />
       </div>
       <ul className="divide-y divide-rule border-t border-rule">
         {subs.map(({ student, sub }) => (
@@ -352,6 +424,7 @@ function TeacherHomeworkCard({ hw, roster }: { hw: Homework; roster: Student[] }
 
 function SubmissionRow({ student, sub }: { student: Student; sub?: Submission }) {
   const { reviewSubmission } = useStore();
+  const files = useAttachments("submission", sub?.id ?? "");
   const [open, setOpen] = useState(false);
   const [score, setScore] = useState(sub?.score?.toString() ?? "");
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
@@ -365,6 +438,7 @@ function SubmissionRow({ student, sub }: { student: Student; sub?: Submission })
           <div className="text-xs text-muted">
             {student.code}
             {sub && `, nộp ${time(sub.submittedAt)} ${dateShort(sub.submittedAt)}`}
+            {files.length > 0 && `, ${files.length} file`}
           </div>
         </div>
         {!sub ? (
@@ -389,7 +463,8 @@ function SubmissionRow({ student, sub }: { student: Student; sub?: Submission })
             setOpen(false);
           }}
         >
-          <p className="whitespace-pre-wrap text-sm text-ink">{sub.content}</p>
+          {sub.content && <p className="whitespace-pre-wrap text-sm text-ink">{sub.content}</p>}
+          {files.length > 0 && <AttachmentList items={files} />}
           {sub.link && (
             <a href={sub.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-brand hover:underline">
               <IconLink size={14} /> {sub.link}

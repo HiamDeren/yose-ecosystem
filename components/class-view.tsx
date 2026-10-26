@@ -161,6 +161,8 @@ function SessionRow({
   account: Account;
 }) {
   const note = data.notes.find((n) => n.sessionId === s.id);
+  const visibleNote = note?.publishedAt ? note : undefined;
+  const files = data.attachments.filter((a) => a.ownerType === "session" && a.ownerId === s.id).length;
   const studentId = account.role === "student" ? account.profileId! : undefined;
   const hws = homeworkOfSession(data, s.id, studentId);
   const remark = studentId ? data.remarks.find((r) => r.sessionId === s.id && r.studentId === studentId) : undefined;
@@ -184,18 +186,30 @@ function SessionRow({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
             {scheduled ? (
-              <span>
-                {time(s.date)}, {s.durationMin} phút
-              </span>
+              <>
+                <span>
+                  {time(s.date)}, {s.durationMin} phút
+                </span>
+                {!studentId &&
+                  (note ? (
+                    <span className={note.publishedAt ? "text-ok" : ""}>{note.publishedAt ? "Đã công bố note" : "Đã soạn bản nháp"}</span>
+                  ) : (
+                    <span>Chưa soạn bài</span>
+                  ))}
+                {files > 0 && <span>{files} tài liệu</span>}
+              </>
             ) : (
               <>
-                {note ? (
+                {visibleNote ? (
                   <span className="inline-flex items-center gap-1">
-                    <IconBook size={13} /> Note, {note.vocab.length} từ mới
+                    <IconBook size={13} /> Note, {visibleNote.vocab.length} từ mới
                   </span>
                 ) : (
-                  <span className={account.role !== "student" ? "hl text-ink" : ""}>Chưa có note</span>
+                  <span className={account.role !== "student" ? "hl text-ink" : ""}>
+                    {note ? "Note chưa công bố" : "Chưa có note"}
+                  </span>
                 )}
+                {files > 0 && <span>{files} tài liệu</span>}
                 {remark && (
                   <span className="inline-flex items-center gap-1.5">
                     <AttendanceDot status={remark.attendance} />

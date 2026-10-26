@@ -132,7 +132,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-rule bg-surface px-4 py-5 lg:flex">
         <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
           <Logo />
-          <span className="text-[1.05rem] font-semibold tracking-tight">Yose Center</span>
+          <span className="text-[1.05rem] font-semibold tracking-tight">Yose Home</span>
         </Link>
         <nav className="flex flex-col gap-0.5" aria-label="Điều hướng chính">
           {nav.map((n) => {
@@ -195,7 +195,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-rule bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2">
           <Logo />
-          <span className="font-semibold tracking-tight">Yose Center</span>
+          <span className="font-semibold tracking-tight">Yose Home</span>
         </Link>
         <div className="flex items-center gap-1">
           <ThemeToggle />

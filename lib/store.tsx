@@ -9,9 +9,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { clearFiles, deleteFile, putFile } from "./file-store";
 import { buildMockData } from "./mock-data";
 import type {
   Account,
+  Attachment,
+  AttachmentOwner,
   Homework,
   StudentRemark,
   Submission,
@@ -25,7 +28,7 @@ import type {
  * UI giữ nguyên.
  */
 
-const DATA_KEY = "yose-center-demo-v1";
+const DATA_KEY = "yose-center-demo-v2";
 const ACCOUNT_KEY = "yose-center-account";
 
 interface StoreValue {
@@ -37,11 +40,15 @@ interface StoreValue {
   signIn: (accountId: string) => void;
   signInByEmail: (email: string) => Account | null;
   signOut: () => void;
-  saveNote: (sessionId: string, content: string, vocab: VocabItem[]) => void;
-  addHomework: (hw: Omit<Homework, "id">) => void;
+  saveNote: (sessionId: string, html: string, vocab: VocabItem[]) => void;
+  setNotePublished: (sessionId: string, published: boolean) => void;
+  addHomework: (hw: Omit<Homework, "id">) => string;
   updateHomework: (id: string, patch: Partial<Homework>) => void;
   deleteHomework: (id: string) => void;
-  submitHomework: (homeworkId: string, content: string, link?: string) => void;
+  /** Trả về id bài nộp để gắn file đính kèm */
+  submitHomework: (homeworkId: string, content: string, link?: string) => string | undefined;
+  addAttachment: (ownerType: AttachmentOwner, ownerId: string, file: Blob, name: string) => Promise<Attachment>;
+  removeAttachment: (id: string) => void;
   reviewSubmission: (id: string, score: number | undefined, feedback: string) => void;
   setRemark: (sessionId: string, studentId: string, patch: Partial<StudentRemark>) => void;
   resetDemo: () => void;
@@ -76,6 +83,7 @@ const EMPTY: YoseData = {
   remarks: [],
   homework: [],
   submissions: [],
+  attachments: [],
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -144,41 +152,67 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signIn,
       signInByEmail,
       signOut,
-      saveNote: (sessionId, content, vocab) =>
+      saveNote: (sessionId, html, vocab) =>
         setData((d) => {
+          const prev = d.notes.find((n) => n.sessionId === sessionId);
           const others = d.notes.filter((n) => n.sessionId !== sessionId);
           return {
             ...d,
             notes: [
               ...others,
-              { sessionId, content, vocab, updatedAt: stamp(), authorId: account?.profileId ?? "" },
+              {
+                sessionId,
+                html,
+                vocab,
+                updatedAt: stamp(),
+                authorId: account?.profileId ?? "",
+                publishedAt: prev?.publishedAt,
+              },
             ],
           };
         }),
-      addHomework: (hw) =>
+      setNotePublished: (sessionId, published) =>
         setData((d) => ({
           ...d,
-          homework: [...d.homework, { ...hw, id: `hw-${crypto.randomUUID().slice(0, 8)}` }],
+          notes: d.notes.map((n) =>
+            n.sessionId === sessionId ? { ...n, publishedAt: published ? stamp() : undefined } : n,
+          ),
         })),
+      addHomework: (hw) => {
+        const id = `hw-${crypto.randomUUID().slice(0, 8)}`;
+        setData((d) => ({ ...d, homework: [...d.homework, { ...hw, id }] }));
+        return id;
+      },
       updateHomework: (id, patch) =>
         setData((d) => ({
           ...d,
           homework: d.homework.map((h) => (h.id === id ? { ...h, ...patch } : h)),
         })),
       deleteHomework: (id) =>
-        setData((d) => ({
-          ...d,
-          homework: d.homework.filter((h) => h.id !== id),
-          submissions: d.submissions.filter((s) => s.homeworkId !== id),
-        })),
+        setData((d) => {
+          const subIds = new Set(d.submissions.filter((s) => s.homeworkId === id).map((s) => s.id));
+          const gone = d.attachments.filter(
+            (a) => (a.ownerType === "homework" && a.ownerId === id) || (a.ownerType === "submission" && subIds.has(a.ownerId)),
+          );
+          gone.forEach((a) => void deleteFile(a.id));
+          return {
+            ...d,
+            homework: d.homework.filter((h) => h.id !== id),
+            submissions: d.submissions.filter((s) => s.homeworkId !== id),
+            attachments: d.attachments.filter((a) => !gone.includes(a)),
+          };
+        }),
       submitHomework: (homeworkId, content, link) => {
-        if (!studentId) return;
+        if (!studentId) return undefined;
+        const id =
+          data.submissions.find((s) => s.homeworkId === homeworkId && s.studentId === studentId)?.id ??
+          `sub-${crypto.randomUUID().slice(0, 8)}`;
         setData((d) => {
           const existing = d.submissions.find(
             (s) => s.homeworkId === homeworkId && s.studentId === studentId,
           );
           const next: Submission = {
-            id: existing?.id ?? `sub-${crypto.randomUUID().slice(0, 8)}`,
+            id,
             homeworkId,
             studentId,
             content,
@@ -193,6 +227,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               : [...d.submissions, next],
           };
         });
+        return id;
+      },
+      addAttachment: async (ownerType, ownerId, file, name) => {
+        const att: Attachment = {
+          id: `att-${crypto.randomUUID()}`,
+          ownerType,
+          ownerId,
+          name,
+          size: file.size,
+          mime: file.type || "application/octet-stream",
+          uploadedAt: stamp(),
+          uploaderId: account?.profileId ?? account?.id ?? "",
+        };
+        await putFile(att.id, file);
+        setData((d) => ({ ...d, attachments: [...d.attachments, att] }));
+        return att;
+      },
+      removeAttachment: (id) => {
+        void deleteFile(id);
+        setData((d) => ({ ...d, attachments: d.attachments.filter((a) => a.id !== id) }));
       },
       reviewSubmission: (id, score, feedback) =>
         setData((d) => ({
@@ -214,6 +268,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           };
         }),
       resetDemo: () => {
+        void clearFiles();
         setData(buildMockData());
       },
     };

@@ -1,6 +1,7 @@
 import { lessonFor, LESSONS } from "./lessons";
 import type {
   Account,
+  Attachment,
   ClassGroup,
   ClassSession,
   Enrollment,
@@ -165,6 +166,7 @@ export function buildMockData(now = new Date()): YoseData {
   const remarks: StudentRemark[] = [];
   const homework: Homework[] = [];
   const submissions: Submission[] = [];
+  const attachments: Attachment[] = [];
 
   for (const c of classes) {
     let cursor = new Date(c.startDate);
@@ -190,18 +192,35 @@ export function buildMockData(now = new Date()): YoseData {
         };
         sessions.push(s);
 
-        if (done) {
+        const endedAt = new Date(start.getTime() + slot.durationMin * 60_000).toISOString();
+        const isNextScheduled = !done && !sessions.some((x) => x.classId === c.id && x.status === "scheduled" && x !== s);
+
+        if (done || isNextScheduled) {
+          // Note buổi đã học: đã công bố. Buổi sắp tới gần nhất: GV đã soạn sẵn bản nháp.
           notes.push({
             sessionId: s.id,
-            content:
-              "## Nội dung chính\n" +
-              lesson.points.map((p) => `- ${p}`).join("\n") +
-              "\n\n## Lưu ý cho buổi sau\n- Ôn lại từ vựng trong bảng bên dưới trước khi vào lớp.",
+            html: done ? lessonHtml(lesson.points) : draftHtml(lesson.points),
             vocab: lesson.vocab,
-            updatedAt: new Date(start.getTime() + slot.durationMin * 60_000).toISOString(),
+            updatedAt: done ? endedAt : new Date(start.getTime() - 2 * DAY).toISOString(),
             authorId: c.teacherId,
+            publishedAt: done ? new Date(start.getTime() - 30 * 60_000).toISOString() : undefined,
           });
+          for (const m of MATERIALS[track[c.id]].slice(0, done ? 1 + (index % 2) : 1)) {
+            attachments.push({
+              id: `att-${s.id}-${attachments.length}`,
+              ownerType: "session",
+              ownerId: s.id,
+              name: m.name.replace("{n}", String(index)),
+              size: m.size,
+              mime: m.mime,
+              uploadedAt: new Date(start.getTime() - DAY).toISOString(),
+              uploaderId: c.teacherId,
+              sample: true,
+            });
+          }
+        }
 
+        if (done) {
           // Hạn nộp: trước giờ vào lớp buổi kế tiếp
           const dueAt = nextSlot(c, start);
           const hw: Homework = {
@@ -213,6 +232,19 @@ export function buildMockData(now = new Date()): YoseData {
             assigneeIds: null,
           };
           homework.push(hw);
+          if (track[c.id] === "readlis" || track[c.id] === "grammar") {
+            attachments.push({
+              id: `att-${hw.id}`,
+              ownerType: "homework",
+              ownerId: hw.id,
+              name: track[c.id] === "readlis" ? `Answer sheet buoi ${index}.pdf` : `Workbook trang ${10 + index}.pdf`,
+              size: 240_000 + index * 13_000,
+              mime: "application/pdf",
+              uploadedAt: endedAt,
+              uploaderId: c.teacherId,
+              sample: true,
+            });
+          }
 
           const isRecent = now.getTime() - start.getTime() < 4 * DAY;
           for (const studentId of roster[c.id]) {
@@ -241,8 +273,7 @@ export function buildMockData(now = new Date()): YoseData {
               id: `sub-${hw.id}-${studentId}`,
               homeworkId: hw.id,
               studentId,
-              content: "Em đã làm xong, đáp án và bài viết ở link bên dưới ạ.",
-              link: "https://drive.google.com/",
+              content: track[c.id] === "speaking" ? "Em gửi file ghi âm ạ." : "Em nộp bài, ảnh chụp bài làm ở file đính kèm ạ.",
               submittedAt: submittedAt.toISOString(),
               status: reviewed ? "reviewed" : "submitted",
               score: reviewed ? Math.round((6 + r() * 4) * 2) / 2 : undefined,
@@ -254,6 +285,18 @@ export function buildMockData(now = new Date()): YoseData {
                     "Làm đầy đủ. Lần sau nộp sớm hơn nhé.",
                   ])
                 : undefined,
+            });
+            const speaking = track[c.id] === "speaking";
+            attachments.push({
+              id: `att-sub-${hw.id}-${studentId}`,
+              ownerType: "submission",
+              ownerId: `sub-${hw.id}-${studentId}`,
+              name: speaking ? `ghi-am-buoi-${index}.webm` : `bai-lam-buoi-${index}.jpg`,
+              size: speaking ? 900_000 + Math.round(r() * 600_000) : 600_000 + Math.round(r() * 900_000),
+              mime: speaking ? "audio/webm" : "image/jpeg",
+              uploadedAt: submittedAt.toISOString(),
+              uploaderId: studentId,
+              sample: true,
             });
           }
         }
@@ -291,7 +334,54 @@ export function buildMockData(now = new Date()): YoseData {
     remarks,
     homework,
     submissions,
+    attachments,
   };
+}
+
+const MATERIALS: Record<keyof typeof LESSONS, { name: string; size: number; mime: string }[]> = {
+  speaking: [
+    { name: "Cue card buoi {n}.pdf", size: 182_000, mime: "application/pdf" },
+    { name: "Sample answer band 7.mp3", size: 2_400_000, mime: "audio/mpeg" },
+  ],
+  communication: [
+    { name: "Roleplay cards buoi {n}.pdf", size: 310_000, mime: "application/pdf" },
+    { name: "Useful phrases.docx", size: 48_000, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+  ],
+  readlis: [
+    { name: "Reading passage buoi {n}.pdf", size: 2_350_000, mime: "application/pdf" },
+    { name: "Listening section buoi {n}.mp3", size: 6_100_000, mime: "audio/mpeg" },
+  ],
+  grammar: [
+    { name: "Slide ngu phap buoi {n}.pptx", size: 1_800_000, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+    { name: "Bai tap them buoi {n}.pdf", size: 420_000, mime: "application/pdf" },
+  ],
+};
+
+/** "**đậm**", "*nghiêng*" trong thư viện bài học → HTML */
+function inlineHtml(t: string) {
+  return t
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function lessonHtml(points: string[]) {
+  return (
+    "<h2>Nội dung chính</h2><ul>" +
+    points.map((p) => `<li><p>${inlineHtml(p)}</p></li>`).join("") +
+    "</ul><h2>Ghi trên lớp</h2><ul><li><p>Cả lớp làm bài mẫu, chữa trực tiếp trên bảng. <mark>Câu sai nhiều nhất: câu 3 và câu 7.</mark></p></li></ul>" +
+    "<h2>Lưu ý cho buổi sau</h2><ul><li><p>Ôn lại từ vựng trong bảng bên dưới trước khi vào lớp.</p></li></ul>"
+  );
+}
+
+function draftHtml(points: string[]) {
+  return (
+    "<h2>Kế hoạch buổi học</h2><ol><li><p>Warm-up 10 phút: hỏi lại từ vựng buổi trước.</p></li><li><p>Bài chính 60 phút.</p></li><li><p>Luyện tập theo cặp và chữa bài.</p></li></ol>" +
+    "<h2>Nội dung chính</h2><ul>" +
+    points.map((p) => `<li><p>${inlineHtml(p)}</p></li>`).join("") +
+    "</ul><h2>Ghi trên lớp</h2><p></p>"
+  );
 }
 
 function nextSlot(c: ClassGroup, after: Date) {

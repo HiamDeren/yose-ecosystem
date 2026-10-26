@@ -188,27 +188,98 @@ body {
 .prose-note h2:first-child {
   margin-top: 0;
 }
-.prose-note ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.prose-note h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--ink);
+  margin: 1.2em 0 0.3em;
 }
-.prose-note li {
-  position: relative;
-  padding-left: 1.25em;
+.prose-note p {
   margin: 0.35em 0;
 }
-.prose-note li::before {
+.prose-note ul,
+.prose-note ol {
+  padding: 0;
+  margin: 0.25em 0;
+}
+.prose-note ul {
+  list-style: none;
+}
+.prose-note ol {
+  list-style: decimal;
+  padding-left: 1.35em;
+}
+.prose-note ol > li::marker {
+  color: var(--brand);
+  font-family: var(--font-sans);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.prose-note li {
+  margin: 0.2em 0;
+}
+.prose-note li > p {
+  margin: 0;
+}
+.prose-note ul > li {
+  position: relative;
+  padding-left: 1.25em;
+}
+.prose-note ul > li::before {
   content: "";
   position: absolute;
   left: 0.15em;
-  top: 0.78em;
-  width: 0.4em;
-  height: 1.5px;
+  top: 0.8em;
+  width: 0.45em;
+  height: 2px;
+  border-radius: 1px;
   background: var(--brand);
 }
 .prose-note strong {
   font-weight: 650;
+}
+.prose-note mark {
+  color: inherit;
+  background-image: linear-gradient(
+    100deg,
+    transparent 0.2em,
+    var(--highlight) 0.3em,
+    var(--highlight) calc(100% - 0.2em),
+    transparent calc(100% - 0.1em)
+  );
+  background-color: transparent;
+  background-size: 100% 62%;
+  background-position: 0 78%;
+  background-repeat: no-repeat;
+  padding: 0 0.15em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.prose-note blockquote {
+  margin: 0.6em 0;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 2px solid var(--margin);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.prose-note a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-note > *:first-child {
+  margin-top: 0;
+}
+.prose-note p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ProseMirror:focus {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

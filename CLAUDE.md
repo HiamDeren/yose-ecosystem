@@ -1,4 +1,4 @@
-# Yose Center
+# Yose Center (tên hiển thị trong app: **Yose Home**)
 
 @AGENTS.md
 
@@ -10,7 +10,12 @@ Nền tảng cho trung tâm tiếng Anh Yose, thay cho việc ghi note và homew
 
 - 3 loại lớp: **1-1**, **1-2**, **nhóm tối đa 12 người** (nhiều level: Intern, Pre-Intermediate…). Một học viên có thể học nhiều lớp cùng lúc (vd 1 lớp 1-1 và lớp nhóm "Intern Read-Lis").
 - Mỗi học viên có **mã riêng** (vd `YS-24017`) gắn với **Gmail** điền trong form đăng ký. Đăng nhập bằng Google; Gmail chưa đăng ký thì không vào được.
-- Mỗi buổi học có: note chung (markdown + bảng từ vựng có cột *Definition in English*), điểm danh + nhận xét riêng từng học viên, homework + bài nộp + chấm điểm.
+- Mục tiêu lớn: **bỏ phụ thuộc Google Docs/Drive**. Trước đây GV tạo folder Drive mỗi lớp, cấp quyền từng học viên, mỗi buổi 1 file Docs soạn trước rồi ghi tiếp lúc dạy, cộng folder homework. Nay tất cả nằm trong app (xem `docs/ARCHITECTURE.md` mục 7).
+- Mỗi buổi học có:
+  - note soạn bằng trình soạn TipTap: **bản nháp** (GV soạn trước, HV chưa thấy) → **công bố** → GV mở lại để **ghi trên lớp** (tự lưu, có bút dạ quang); kèm bảng từ vựng có cột *Definition in English*;
+  - **tài liệu buổi học** (file đính kèm: PDF, mp3, slide…);
+  - điểm danh + nhận xét riêng từng học viên;
+  - homework: file đề kèm theo, học viên nộp file/ảnh/**ghi âm ngay trên trình duyệt**/chữ/link, GV chấm điểm.
 - Vai trò: học viên, giáo viên, admin.
 - **Giai đoạn sau:** gộp quản lý giáo viên, giờ dạy, lương vào cùng app. Vì vậy `ClassSession` đã lưu `teacherId` (người thực dạy, kể cả dạy thay) và `durationMin`; schema có sẵn bảng `Payroll`.
 
@@ -18,7 +23,7 @@ Repo `HiamDeren/yose-classroom` là repo khác (nơi chủ dự án lưu tài li
 
 ## Trạng thái hiện tại: bản demo
 
-- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage**. Chưa có database, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
+- UI đầy đủ cho cả 3 vai trò, chạy bằng **mock data trong localStorage** (key `yose-center-demo-v2`; đổi shape dữ liệu thì tăng version). Nội dung file đính kèm lưu trong **IndexedDB** (`lib/file-store.ts`); file mẫu có `sample: true`, không có nội dung. Chưa có database, chưa có S3, chưa có Google OAuth thật (nút "Tiếp tục với Google" mở danh sách tài khoản mẫu).
 - `npm run dev` là chạy được, không cần biến môi trường.
 - Chi tiết idea, phân quyền, stack, lộ trình: `docs/ARCHITECTURE.md`. Schema đề xuất: `prisma/schema.prisma` (Prisma **chưa cài**).
 
@@ -42,7 +47,12 @@ app/(app)/admin/{students,classes,teachers}/ Chỉ admin (components/admin-guard
 lib/types.ts                                 Kiểu domain, khớp 1-1 với prisma/schema.prisma
 lib/store.tsx                                StoreProvider + useStore(): data, account, now, mọi action ghi
 lib/selectors.ts                             Truy vấn thuần: lớp theo account, quyền, trạng thái bài, giờ dạy
+lib/file-store.ts                            Kho file demo (IndexedDB); production thay bằng S3 presigned URL
 lib/mock-data.ts, lib/lessons.ts             Sinh dữ liệu mẫu tương đối theo ngày hiện tại
+components/rich-editor.tsx                   TipTap: NoteEditor (soạn) và NoteContent (chỉ đọc)
+components/note-panel.tsx                    Tab Note: trạng thái nháp/công bố, workspace tự lưu, tài liệu buổi học
+components/attachments.tsx                   AttachmentList, FileDrop, UploadArea, AudioRecorder, PendingList
+components/homework-panel.tsx                Giao bài (kèm file), nộp bài (file/ghi âm/chữ/link), chấm bài
 ```
 
 ## Quy ước quan trọng
@@ -52,6 +62,8 @@ lib/mock-data.ts, lib/lessons.ts             Sinh dữ liệu mẫu tương đ�
 - Page trong segment động là server component mỏng: `generateStaticParams()` (từ mock data) + `<Suspense>` bọc client view dùng `useParams()` / `useSearchParams()`. ID mock ổn định (`c-rl`, `c-rl-b3`…) nên generateStaticParams luôn khớp.
 - `STATIC_EXPORT=1 npm run build` xuất bản tĩnh vào `out/`. Chế độ này tự tắt `cacheComponents` vì static export không hỗ trợ PPR.
 - Trước khi dùng API Next.js nào lạ, đọc docs trong `node_modules/next/dist/docs/` (xem AGENTS.md). Ví dụ: `middleware` đã đổi tên thành `proxy`.
+- `useEditor` của TipTap luôn đặt `immediatelyRender: false` (tránh lỗi hydration trong Next).
+- Viewer artifact/iframe chặn `confirm()`; xác nhận xóa làm bằng nút trong giao diện (đã làm vậy cho file và homework).
 - Kiểm tra trước khi commit: `npx eslint .` và `npm run build` phải sạch.
 
 ## Thiết kế
@@ -64,11 +76,11 @@ lib/mock-data.ts, lib/lessons.ts             Sinh dữ liệu mẫu tương đ�
 
 ## Bước tiếp theo (MVP)
 
-1. Tạo RDS PostgreSQL, cài Prisma, migrate từ `prisma/schema.prisma`, viết seed từ `lib/mock-data.ts`.
+1. Tạo RDS PostgreSQL, cài Prisma, migrate từ `prisma/schema.prisma` (đã có `Attachment`, `NoteRevision`, `SessionNote.doc` jsonb + `publishedAt`), viết seed từ `lib/mock-data.ts`.
 2. Cài Auth.js v5 Google provider; `signIn` callback chặn Gmail lạ; `session` callback gắn `role`, `studentId`, `teacherId`.
 3. Thay action trong `lib/store.tsx` bằng Server Actions dùng Prisma, kèm kiểm tra quyền ở server.
-4. Upload bài nộp lên S3 bằng presigned URL.
-5. Script import note cũ từ Google Docs (tách theo heading "Buổi X" / "Lesson X").
+4. S3: route xin presigned PUT/GET URL có kiểm tra quyền theo lớp, thay `lib/file-store.ts`. Note lưu `editor.getJSON()` thay vì HTML.
+5. Script import từ Google Drive/Docs (docs/ARCHITECTURE.md mục 8).
 6. Sinh lịch buổi học tự động từ `ClassGroup.schedule`.
 7. Giai đoạn 2: module giáo viên và lương (bảng `Payroll`, duyệt, dạy thay).
 
