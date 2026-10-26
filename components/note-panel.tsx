@@ -31,9 +31,9 @@ function StudentNote({ session, studentId }: { session: ClassSession; studentId:
   const visible = note?.publishedAt ? note : undefined;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1">
       {remark?.comment && (
-        <div className="rounded-xl border border-rule bg-surface p-4 sm:p-5">
+        <div className="shrink-0 rounded-xl border border-rule bg-surface p-4 sm:p-5">
           <div className="flex items-center gap-2 text-xs text-muted">
             <AttendanceDot status={remark.attendance} /> {ATTENDANCE_LABEL[remark.attendance]}
             <span className="ml-1">Nhận xét riêng cho bạn</span>
@@ -97,8 +97,8 @@ function TeacherNote({ session, cls }: { session: ClassSession; cls: ClassGroup 
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rule bg-surface px-4 py-3 shadow-card">
+    <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-rule bg-surface px-4 py-3 shadow-card">
         <NoteStatus note={note} live={live} />
         <div className="ml-auto flex flex-wrap gap-2">
           {editing ? (
@@ -301,12 +301,11 @@ function Workspace({ note, materials }: { note: SessionNote; materials: ReactNod
 
 /** Màn rộng: note bên trái, từ vựng + tài liệu bên phải */
 function Columns({ main, side }: { main: ReactNode; side: ReactNode }) {
+  // lg: cả khối cuộn trong khung; xl: 2 cột, note (trái) và từ vựng + tài liệu (phải) cuộn riêng
   return (
-    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
-      <div className="min-w-0">{main}</div>
-      <div className="min-w-0 space-y-8 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-3rem)] xl:self-start xl:overflow-y-auto xl:pb-4 xl:pr-1">
-        {side}
-      </div>
+    <div className="grid gap-8 lg:min-h-0 lg:flex-1 lg:overflow-y-auto xl:grid-cols-[minmax(0,1fr)_26rem] xl:grid-rows-[minmax(0,1fr)] xl:overflow-visible 2xl:grid-cols-[minmax(0,1fr)_30rem]">
+      <div className="min-w-0 xl:h-full xl:overflow-y-auto xl:overscroll-contain xl:px-1 xl:pb-2">{main}</div>
+      <div className="min-w-0 space-y-8 xl:h-full xl:overflow-y-auto xl:overscroll-contain xl:pb-2 xl:pr-1">{side}</div>
     </div>
   );
 }

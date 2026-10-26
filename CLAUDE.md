@@ -78,6 +78,7 @@ components/homework-panel.tsx                Giao bài (kèm file), nộp bài (
 
 ## Thiết kế
 
+- Trang buổi học trên màn `lg+` vừa khít khung (`SessionView` là flex cột `h-full`): tiêu đề, tab, thanh trạng thái note và điều hướng buổi đứng yên; chỉ nội dung tab cuộn. Ở `xl`, `Columns` trong note-panel chia 2 cột cuộn riêng (note | từ vựng + tài liệu). Thêm khối mới vào tab thì giữ chuỗi `min-h-0 flex-1` để không làm vỡ khung cuộn.
 - Bố cục: shell cao đúng màn hình (`h-dvh overflow-hidden`), chỉ `<main id="app-scroll">` cuộn; đổi trang thì AppShell tự cuộn main về đầu. Phần tử sticky (thanh công cụ editor, cột phải trang buổi học, danh sách học viên ở trang lớp) dùng `top-0` theo khung cuộn này.
 - Thanh cuộn mảnh theo theme (`--scroll-thumb`); dải tab cuộn ngang dùng class `no-scrollbar` và gạch chân bằng `shadow-[inset_0_-1px_0_var(--rule)]` (không dùng `-mb-px`, vì sẽ sinh thanh cuộn dọc).
 - Ảnh trong note: nhấp đúp mở trình xem (`components/editor/image-viewer.tsx`, phát sự kiện `yose:view-image`). Trong ô bảng, ảnh xếp cạnh nhau: CSS đặt trên lớp bọc `.node-image` của ReactNodeViewRenderer, không phải `.note-image`.

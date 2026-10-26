@@ -43,7 +43,9 @@ export function SessionView() {
   const tabs: { id: Tab; label: string; count?: number; mark?: boolean }[] = [
     { id: "note", label: "Note trên lớp" },
     { id: "homework", label: "Homework", count: hws.length, mark: pendingCount > 0 },
-    ...(staff ? [{ id: "attendance" as Tab, label: "Điểm danh và nhận xét", count: rosterOf(data, cls.id).length }] : []),
+    ...(staff
+      ? [{ id: "attendance" as Tab, label: "Điểm danh và nhận xét", count: rosterOf(data, cls.id).length }]
+      : []),
   ];
 
   const setTab = (t: Tab) => {
@@ -54,27 +56,34 @@ export function SessionView() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
+  // Màn lớn: trang vừa khít khung, chỉ nội dung tab (khung note) tự cuộn
   return (
-    <>
-      <PageHeader
-        back={<BackLink href={`/classes/${cls.id}`}>{cls.name}</BackLink>}
-        title={
-          <>
-            <span className="mr-2 text-muted">Buổi {session.index}.</span>
-            {session.topic}
-          </>
-        }
-        sub={
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <ClassTypeBadge type={cls.type} />
-            <span>
-              {dateLong(session.date)}, {time(session.date)}, {session.durationMin} phút. Giáo viên {teacher?.fullName}.
+    <div className="lg:flex lg:h-full lg:flex-col">
+      <div className="shrink-0">
+        <PageHeader
+          back={<BackLink href={`/classes/${cls.id}`}>{cls.name}</BackLink>}
+          title={
+            <>
+              <span className="mr-2 text-muted">Buổi {session.index}.</span>
+              {session.topic}
+            </>
+          }
+          sub={
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <ClassTypeBadge type={cls.type} />
+              <span>
+                {dateLong(session.date)}, {time(session.date)}, {session.durationMin} phút. Giáo viên{" "}
+                {teacher?.fullName}.
+              </span>
             </span>
-          </span>
-        }
-      />
-
-      <div role="tablist" aria-label="Nội dung buổi học" className="no-scrollbar mb-6 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--rule)]">
+          }
+        />
+      </div>
+      <div
+        role="tablist"
+        aria-label="Nội dung buổi học"
+        className="no-scrollbar mb-5 shrink-0 flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--rule)]"
+      >
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
@@ -97,13 +106,24 @@ export function SessionView() {
         })}
       </div>
 
-      <div role="tabpanel">
+      <div role="tabpanel" className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         {tab === "note" && <NotePanel session={session} cls={cls} />}
-        {tab === "homework" && <HomeworkPanel session={session} cls={cls} />}
-        {tab === "attendance" && staff && <AttendancePanel session={session} cls={cls} />}
+        {tab === "homework" && (
+          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+            <HomeworkPanel session={session} cls={cls} />
+          </div>
+        )}
+        {tab === "attendance" && staff && (
+          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+            <AttendancePanel session={session} cls={cls} />
+          </div>
+        )}
       </div>
 
-      <nav className="mt-12 grid grid-cols-2 gap-3 border-t border-rule pt-5 text-sm" aria-label="Buổi khác">
+      <nav
+        className="mt-8 grid shrink-0 grid-cols-2 gap-3 border-t border-rule pt-3 text-sm lg:mt-4"
+        aria-label="Buổi khác"
+      >
         {prev ? (
           <Link
             href={`/classes/${cls.id}/sessions/${prev.id}${tab !== "note" ? `?tab=${tab}` : ""}`}
@@ -131,6 +151,6 @@ export function SessionView() {
           </Link>
         )}
       </nav>
-    </>
+    </div>
   );
 }
